@@ -8,11 +8,11 @@ COPY packages/core ./packages/core
 COPY packages/backend ./packages/backend
 COPY packages/scraper ./packages/scraper
 COPY packages/cli ./packages/cli
-RUN uv sync --frozen --all-packages --no-dev --no-editable
+RUN --mount=type=cache,target=/root/.cache/uv uv sync --frozen --all-packages --no-dev --no-editable
 COPY alembic.ini ./
 COPY migrations ./migrations
 ENV HF_HOME=/opt/models TOKENIZERS_PARALLELISM=false
-RUN musefy embedding-model
+RUN --mount=type=cache,target=/opt/models/xet musefy embedding-model
 ENV HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1
 RUN useradd --create-home app
 USER app
