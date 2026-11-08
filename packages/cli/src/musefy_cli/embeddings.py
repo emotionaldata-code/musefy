@@ -1,6 +1,8 @@
 """Bounded, resumable synopsis indexing; no provider requests."""
 
+import asyncio
 import logging
+from collections.abc import AsyncGenerator
 from dataclasses import dataclass
 
 from musefy_core.db import embeddings
@@ -13,6 +15,16 @@ class EmbeddingStats:
     processed: int = 0
     embedded: int = 0
     batches: int = 0
+
+
+async def follow(
+    sessions: Sessions, embedder: Embedder, *, batch_size: int = 32, interval: int = 60
+) -> AsyncGenerator[EmbeddingStats]:
+    if interval < 1:
+        raise ValueError("interval must be positive")
+    while True:
+        yield await populate(sessions, embedder, batch_size=batch_size)
+        await asyncio.sleep(interval)
 
 
 async def populate(

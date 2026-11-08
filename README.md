@@ -315,7 +315,7 @@ sinossi esatta e timestamp. Sinossi vuote escluse. Batch limitati, keyset pagina
 commit per batch e upsert idempotente: rilanciare salta ciò che è già corrente.
 Sinossi modificate durante il calcolo non vengono salvate; quelle modificate dopo
 sono escluse dalla ricerca fino al prossimo batch. `--force` ricalcola esplicitamente.
-I nuovi titoli acquisiti richiedono un successivo batch manuale.
+I nuovi titoli acquisiti vengono indicizzati al batch successivo, anche con `--watch`.
 
 `--batch-size` limita il batch DB (default 32, massimo 1024); l’inferenza resta
 suddivisa in blocchi massimi di 128. Da 128 elementi l’upload usa `COPY BINARY`
@@ -331,6 +331,7 @@ uv run musefy embedding-model # scarica e verifica una volta il modello fissato
 uv run musefy embed --batch-size 32 --threads 2
 uv run musefy embed --max-items 100 --batch-size 16
 uv run musefy embed --force --batch-size 32
+uv run musefy embed --watch --interval 60 --batch-size 1024 --threads 4
 curl -b cookies.txt --get 'http://127.0.0.1:8000/search' \
   --data-urlencode 'q=indagine psicologica con misteri e colpi di scena' \
   --data-urlencode 'source_type=anime' --data-urlencode 'limit=10'
@@ -368,6 +369,34 @@ uv run musefy embed --batch-size 32 --threads 8
 
 L’IP Docker può cambiare a ogni deploy: rilevarlo nuovamente con `docker inspect`.
 Nessuna porta PostgreSQL pubblica e nessun endpoint HTTP per generare o caricare embeddings.
+
+Per mantenere l’indice aggiornato dal PC, `embed --watch` riparte dagli ID iniziali
+a ogni passata, salta hash/profili correnti e attende 60 secondi dopo il completamento.
+Non accetta `--force` o `--max-items`. Un errore interrompe il processo senza perdere
+i batch già committati; il servizio locale lo riavvia ricreando il tunnel e rilevando
+l’IP corrente del container PostgreSQL.
+
+Template in `infra/embeddings/`: copiare `embeddings.env.example` in
+`~/.config/musefy/embeddings.env` (directory 700, file 600), configurare i percorsi
+assoluti, le credenziali DB e l’accesso SSH non interattivo. `MUSEFY_RUNTIME` deve
+contenere il comando `bin/musefy` con questi pacchetti installati e il modello già
+scaricato. Per CUDA usare un venv separato con PyTorch CUDA compatibile, mantenendo
+lo stesso modello/revisione; il lockfile dell’app rimane CPU. Nessun segreto va nei
+template o nella repository.
+
+```bash
+mkdir -p ~/.config/systemd/user
+cp infra/embeddings/musefy-embeddings.service ~/.config/systemd/user/
+systemctl --user daemon-reload
+systemctl --user enable --now musefy-embeddings.service
+systemctl --user status musefy-embeddings.service
+journalctl --user -u musefy-embeddings.service -f
+systemctl --user stop musefy-embeddings.service
+```
+
+Il servizio gira sul PC: quando è spento, sospeso o senza rete il recupero riprende
+al ritorno. `loginctl enable-linger "$USER"` permette al servizio utente di continuare
+dopo il logout. Non calcola embeddings sul server e non avvia scraper.
 
 ## Ripresa, aggiornamenti e limiti
 

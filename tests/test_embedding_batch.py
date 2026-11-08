@@ -1,7 +1,7 @@
 from typing import Never
 
 import pytest
-from musefy_cli.embeddings import populate
+from musefy_cli.embeddings import follow, populate
 from musefy_core.db import titles
 from musefy_core.db.session import Sessions
 from musefy_core.embeddings import Embedder
@@ -60,6 +60,40 @@ async def test_batch_rejects_unbounded_or_invalid_sizes() -> None:
     for batch_size, max_items in [(0, None), (1025, None), (1, 0)]:
         with pytest.raises(ValueError):
             await populate(sessions, Embedder(), batch_size=batch_size, max_items=max_items)
+
+
+async def test_watcher_revisits_new_and_changed_synopses(
+    db: tuple[AsyncEngine, Sessions], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _, sessions = db
+    async with sessions.begin() as session:
+        await titles.upsert(session, example(source_id=1))
+    waits: list[float] = []
+
+    async def sleep(seconds: float) -> None:
+        waits.append(seconds)
+
+    monkeypatch.setattr("musefy_cli.embeddings.asyncio.sleep", sleep)
+    calls: list[list[str]] = []
+
+    def encode(texts: list[str]) -> list[list[float]]:
+        calls.append(texts)
+        return [vector() for _ in texts]
+
+    watcher = follow(sessions, Embedder(factory=lambda: encode), interval=60)
+    try:
+        assert (await anext(watcher)).embedded == 1
+        assert (await anext(watcher)).embedded == 0
+        async with sessions.begin() as session:
+            changed = example(source_id=1)
+            changed.metadata.synopsis = "Updated synopsis"
+            await titles.upsert(session, changed)
+            await titles.upsert(session, example(source_id=2))
+        assert (await anext(watcher)).embedded == 2
+        assert waits == [60, 60]
+        assert [len(batch) for batch in calls] == [1, 2]
+    finally:
+        await watcher.aclose()
 
 
 async def test_large_database_batch_uses_bounded_inference_and_one_commit(

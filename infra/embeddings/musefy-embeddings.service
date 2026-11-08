@@ -1,0 +1,17 @@
+[Unit]
+Description=Musefy local embeddings over a private SSH tunnel
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+EnvironmentFile=%h/.config/musefy/embeddings.env
+ExecStart=/bin/sh -c 'exec "$MUSEFY_PROJECT/infra/embeddings/tunnel.sh" "$MUSEFY_RUNTIME/bin/musefy" embed --watch --interval 60 --batch-size 1024 --device "${MUSEFY_DEVICE:-cpu}" --threads 4'
+Restart=always
+RestartSec=15
+TimeoutStopSec=30
+UMask=0077
+NoNewPrivileges=yes
+KillMode=control-group
+
+[Install]
+WantedBy=default.target

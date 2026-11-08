@@ -14,7 +14,7 @@ from musefy_core.settings import Settings
 from musefy_scraper.runner import import_titles, preview, run_source, work
 from pydantic import ValidationError
 
-from musefy_cli.embeddings import populate
+from musefy_cli.embeddings import follow, populate
 
 
 class Arguments(argparse.Namespace):
@@ -35,6 +35,7 @@ class Arguments(argparse.Namespace):
     batch_size: int
     device: str
     threads: int
+    watch: bool
 
 
 def positive(value: str) -> int:
@@ -78,6 +79,8 @@ def parser() -> argparse.ArgumentParser:
     embed.add_argument("--force", action="store_true")
     embed.add_argument("--device", choices=["cpu", "cuda"], default="cpu")
     embed.add_argument("--threads", type=positive, default=2)
+    embed.add_argument("--watch", action="store_true", help="Repeat incremental indexing until stopped")
+    embed.add_argument("--interval", type=positive, default=60, help="Seconds between completed passes")
     warm = commands.add_parser("embedding-model", help="Download and validate the pinned local model")
     warm.add_argument("--device", choices=["cpu", "cuda"], default="cpu")
     warm.add_argument("--threads", type=positive, default=2)
@@ -91,10 +94,17 @@ async def execute(args: Arguments) -> int:
     engine, sessions = database(settings)
     try:
         if args.command in {"embed", "embedding-model"}:
+            if args.command == "embed" and args.watch and (args.force or args.max_items is not None):
+                raise ValueError("--watch cannot be combined with --force or --max-items")
             embedder = Embedder(device=args.device, threads=args.threads, local_files_only=False)
             if args.command == "embedding-model":
                 await embedder.embed_query("model validation")
                 print(json.dumps({"model": MODEL_ID, "revision": MODEL_REVISION, "profile": PROFILE}))
+            elif args.watch:
+                async for watch_counts in follow(
+                    sessions, embedder, batch_size=args.batch_size, interval=args.interval
+                ):
+                    print(json.dumps(asdict(watch_counts)), flush=True)
             else:
                 embedding_counts = await populate(
                     sessions, embedder, batch_size=args.batch_size, max_items=args.max_items, force=args.force
