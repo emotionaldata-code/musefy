@@ -12,7 +12,6 @@ export type CatalogQuery = {
   source_type: string;
   year: string;
   genre: string;
-  offset: number;
 };
 
 export const categories: { value: Kind | ""; label: string }[] = [
@@ -42,13 +41,13 @@ export async function request<T>(
   return response.json() as Promise<T>;
 }
 
-export function titlesPath(query: CatalogQuery): string {
+export function titlesPath(query: CatalogQuery, offset = 0): string {
   const params = new URLSearchParams({
     limit: String(pageSize),
-    offset: String(query.offset),
+    offset: String(offset),
   });
   for (const [key, value] of Object.entries(query)) {
-    if (value !== "" && key !== "offset") params.set(key, String(value));
+    if (value !== "") params.set(key, value);
   }
   return `/titles?${params}`;
 }

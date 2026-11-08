@@ -117,12 +117,19 @@ redistribuzione sui dati MAL.
 
 Aprire **http://127.0.0.1:5173** dopo `docker compose up --build -d`.
 Ricerca sul titolo, categorie, fonte, anno e genere interrogano FastAPI;
-paginazione da 15 schede, dettaglio con sinossi, rating distinti per fonte,
-crediti, temi, relazioni e provenienza. Filtri e dettaglio sono condivisibili tramite URL.
+scroll continuo con caricamento progressivo di 15 schede per richiesta.
+Le card mostrano copertina, titolo, anno e formato. Il dettaglio mostra sinossi e
+generi; cast, autori, rating distinti per fonte e provenienza sono espandibili.
+Filtri e dettaglio sono condivisibili tramite URL. Cambiare filtro riparte dall'inizio;
+chiudere una scheda conserva i titoli caricati e la posizione. Un errore nelle
+richieste successive lascia visibili le card e permette di ritentare.
 I poster sono caricati dai CDN delle fonti: senza rete compare un'alternativa testuale.
 Il frontend non riceve il token TMDB. Nessuna traduzione automatica.
-Stile True-black flat (seed 580873344), Inter e locandine reali: il catalogo mostra
-le opere per copertina; il dettaglio risponde con metadati e provenienza.
+Tema chiaro/scuro dal pulsante accanto al titolo: segue inizialmente il sistema,
+poi conserva la scelta in localStorage, applicandola prima del rendering.
+Font di sistema, feedback immediato sui controlli e rispetto di reduced motion.
+Stile True-black flat (seed 1722118383), con equivalente chiaro e locandine reali:
+il catalogo mette in primo piano le copertine, con attribuzione raccolta in basso.
 Verificato a 1440, 768 e 390 px; nessun dato dimostrativo nel catalogo locale.
 
 Scaffold eseguito da CLI con `npm create vite@latest packages/frontend -- --template react-ts --no-interactive`,

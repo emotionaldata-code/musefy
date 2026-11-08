@@ -5,25 +5,20 @@ import {
   Film,
   Layers,
   Tv,
-  X,
-  ArrowLeft,
-  ArrowRight,
   RefreshCw,
   ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CatalogToolbar } from "@/components/catalog-toolbar";
-import { Skeleton } from "@/components/ui/skeleton";
-import { TitleCard } from "@/components/title-card";
+import { CatalogResults } from "@/components/catalog-results";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { TitleDetail } from "@/components/title-detail";
 import {
   categories,
   docsURL,
-  pageSize,
   titlesPath,
   type CatalogQuery,
   type Facets,
-  type TitlePage,
 } from "@/lib/api";
 import { useResource } from "@/lib/use-resource";
 
@@ -35,7 +30,6 @@ const initialQuery: CatalogQuery = {
   source_type: initialParams.get("source_type") ?? "",
   year: initialParams.get("year") ?? "",
   genre: initialParams.get("genre") ?? "",
-  offset: Math.max(0, Number(initialParams.get("offset")) || 0),
 };
 function selectedId(): number | null {
   const match = /^#title\/(\d+)$/.exec(window.location.hash);
@@ -47,16 +41,11 @@ export default function App() {
   const [search, setSearch] = useState(initialQuery.q);
   const [revision, setRevision] = useState(0);
   const [id, setId] = useState(selectedId);
-  const { data, loading, error } = useResource<TitlePage>(
-    titlesPath(query),
-    revision,
-  );
   const { data: facets } = useResource<Facets>("/titles/facets", revision);
   const total = Object.values(facets?.counts ?? {}).reduce(
     (sum, count) => sum + (count ?? 0),
     0,
   );
-  const filtered = !!(query.q || query.source || query.year || query.genre);
   const heading =
     categories.find((category) => category.value === query.source_type)
       ?.label ?? "Catalogo";
@@ -65,7 +54,6 @@ export default function App() {
     setQuery((current) => ({
       ...current,
       ...patch,
-      offset: patch.offset ?? 0,
     }));
   }
   function reset() {
@@ -77,23 +65,23 @@ export default function App() {
       source_type: "",
       year: "",
       genre: "",
-      offset: 0,
     });
   }
   useEffect(() => {
     const timer = window.setTimeout(
       () =>
         setQuery((current) =>
-          current.q === search ? current : { ...current, q: search, offset: 0 },
+          current.q === search ? current : { ...current, q: search },
         ),
       300,
     );
     return () => window.clearTimeout(timer);
   }, [search]);
   useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "instant" });
     const params = new URLSearchParams();
     Object.entries(query).forEach(([key, value]) => {
-      if (value !== "" && value !== 0) params.set(key, String(value));
+      if (value !== "") params.set(key, String(value));
     });
     window.history.replaceState(
       null,
@@ -155,37 +143,31 @@ export default function App() {
           })}
         </nav>
         <div className="sidebar-bottom">
-          <p>Storie, in ogni formato.</p>
-          <span>Metadati da TMDB e Jikan.</span>
+          <Attribution />
           <a href={docsURL} target="_blank" rel="noreferrer">
-            Esplora le API <ExternalLink size={12} />
+            API <ExternalLink size={12} />
           </a>
         </div>
       </aside>
       <div className="main-shell">
-        <header className="topbar">
-          <span className="breadcrumb">
-            Biblioteca <span>/</span> Catalogo
-          </span>
-          <span className="local-label">Archivio locale · sola lettura</span>
-        </header>
         <main>
           <div className="page-heading">
             <div>
               <h1>{heading}</h1>
-              <p>
-                Dal grande schermo alla pagina. Tutte le storie che hai
-                raccolto.
-              </p>
             </div>
-            <Button
-              variant="outline"
-              onClick={() => setRevision((value) => value + 1)}
-              aria-label="Aggiorna catalogo"
-            >
-              <RefreshCw size={14} />
-              <span>Aggiorna</span>
-            </Button>
+            <div className="heading-actions">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="icon-button"
+                onClick={() => setRevision((value) => value + 1)}
+                aria-label="Aggiorna catalogo"
+                title="Aggiorna catalogo"
+              >
+                <RefreshCw size={17} />
+              </Button>
+              <ThemeToggle />
+            </div>
           </div>
           <CatalogToolbar
             query={query}
@@ -194,101 +176,35 @@ export default function App() {
             onSearch={setSearch}
             onFilter={update}
           />
-          <div className="results-line" aria-live="polite">
-            <span>
-              {loading
-                ? "Caricamento…"
-                : `${data?.total ?? 0} titoli${filtered ? " trovati" : " nel catalogo"}`}
-            </span>
-            {filtered && (
-              <button onClick={reset}>
-                Rimuovi filtri <X size={12} />
-              </button>
-            )}
-            <span className="sort-label">Ordine di acquisizione</span>
-          </div>
-          {error ? (
-            <div className="empty-state" role="alert">
-              <h2>Il catalogo non è raggiungibile</h2>
-              <p>{error}</p>
-              <Button onClick={() => setRevision((value) => value + 1)}>
-                Riprova
-              </Button>
-            </div>
-          ) : loading ? (
-            <div className="catalog-grid" aria-label="Caricamento catalogo">
-              {Array.from({ length: 10 }, (_, index) => (
-                <div key={index}>
-                  <Skeleton className="aspect-[2/3] w-full rounded-lg" />
-                  <Skeleton className="mt-3 h-4 w-3/4" />
-                </div>
-              ))}
-            </div>
-          ) : data?.items.length ? (
-            <>
-              <div className="catalog-grid">
-                {data.items.map((title) => (
-                  <TitleCard key={title.id} title={title} />
-                ))}
-              </div>
-              <div className="pagination">
-                <span>
-                  {query.offset + 1}–{query.offset + data.items.length} di{" "}
-                  {data.total} titoli
-                </span>
-                <div>
-                  <Button
-                    variant="outline"
-                    aria-label="Pagina precedente"
-                    disabled={!query.offset}
-                    onClick={() =>
-                      update({ offset: Math.max(0, query.offset - pageSize) })
-                    }
-                  >
-                    <ArrowLeft size={14} />
-                    Precedente
-                  </Button>
-                  <Button
-                    variant="outline"
-                    aria-label="Pagina successiva"
-                    disabled={query.offset + pageSize >= data.total}
-                    onClick={() => update({ offset: query.offset + pageSize })}
-                  >
-                    Successiva
-                    <ArrowRight size={14} />
-                  </Button>
-                </div>
-              </div>
-            </>
-          ) : (
-            <div className="empty-state">
-              <h2>
-                {filtered || query.source_type
-                  ? "Nessun titolo trovato"
-                  : "La biblioteca è ancora vuota"}
-              </h2>
-              <p>
-                {filtered || query.source_type
-                  ? "Prova un altro titolo o modifica i filtri."
-                  : "Le opere importate compariranno qui."}
-              </p>
-              {(filtered || query.source_type) && (
-                <Button variant="outline" onClick={reset}>
-                  Mostra tutti i titoli
-                </Button>
-              )}
-            </div>
-          )}
-          <footer>
-            <span>Musefy · Un archivio di storie</span>
-            <span>
-              This product uses the TMDB API but is not endorsed or certified by
-              TMDB. Dati MAL tramite Jikan.
-            </span>
+          <CatalogResults
+            key={`${revision}:${titlesPath(query)}`}
+            query={query}
+            reset={reset}
+          />
+          <footer className="mobile-attribution">
+            <Attribution />
           </footer>
         </main>
       </div>
       <TitleDetail key={id ?? "closed"} id={id} close={close} />
+    </div>
+  );
+}
+
+function Attribution() {
+  return (
+    <div className="attribution">
+      <p>
+        Metadati:{" "}
+        <a href="https://www.themoviedb.org/" target="_blank" rel="noreferrer">
+          TMDB
+        </a>{" "}
+        e Jikan.
+      </p>
+      <p>
+        This product uses the TMDB API but is not endorsed or certified by TMDB.
+      </p>
+      <p>Dati MyAnimeList tramite API compatibile Jikan.</p>
     </div>
   );
 }

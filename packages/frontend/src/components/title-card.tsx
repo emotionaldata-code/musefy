@@ -1,4 +1,4 @@
-import { ArrowUpRight, ImageOff, Star } from "lucide-react";
+import { ImageOff } from "lucide-react";
 import { useState } from "react";
 import { categoryName, type Title } from "@/lib/api";
 
@@ -31,34 +31,18 @@ export function Poster({
 }
 
 export function TitleCard({ title }: { title: Title }) {
-  const rating = title.metadata.ratings[0];
   return (
     <a
       className="title-card"
       href={`#title/${title.id}`}
       aria-label={`Apri ${title.title}`}
     >
-      <div className="poster-wrap">
-        <Poster title={title} />
-        <span className="open-card">
-          <ArrowUpRight size={18} />
-        </span>
-      </div>
-      <div className="card-meta">
-        <span>
-          {categoryName(title.source_type)} · {title.year ?? "Anno n.d."}
-        </span>
-        {rating && (
-          <span className="rating" title={`Voto ${rating.source}`}>
-            <Star size={12} />
-            {rating.value.toFixed(1)}
-          </span>
-        )}
-      </div>
+      <Poster title={title} />
       <h2>{title.title}</h2>
       <p>
-        {(title.genres ?? []).slice(0, 2).join(" · ") ||
-          "Genere non disponibile"}
+        {[title.year, categoryName(title.source_type)]
+          .filter(Boolean)
+          .join(" · ")}
       </p>
     </a>
   );
