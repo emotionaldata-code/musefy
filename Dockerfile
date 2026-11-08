@@ -11,6 +11,9 @@ COPY packages/cli ./packages/cli
 RUN uv sync --frozen --all-packages --no-dev --no-editable
 COPY alembic.ini ./
 COPY migrations ./migrations
+ENV HF_HOME=/opt/models TOKENIZERS_PARALLELISM=false
+RUN musefy embedding-model
+ENV HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1
 RUN useradd --create-home app
 USER app
 CMD ["uvicorn", "musefy_backend.app:app", "--host", "0.0.0.0", "--port", "8000"]

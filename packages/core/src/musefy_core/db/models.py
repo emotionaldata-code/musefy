@@ -1,5 +1,6 @@
 from datetime import datetime
 
+from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
     BigInteger,
     CheckConstraint,
@@ -13,6 +14,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
+from musefy_core.embeddings import DIMENSIONS
 from musefy_core.schemas import JSONObject
 
 
@@ -73,3 +75,13 @@ class CheckpointRow(Base):
     source: Mapped[str] = mapped_column(String(10), primary_key=True)
     source_type: Mapped[str] = mapped_column(String(10), primary_key=True)
     state: Mapped[JSONObject] = mapped_column(JSONB)
+
+
+class EmbeddingRow(Base):
+    __tablename__ = "title_embeddings"
+
+    title_id: Mapped[int] = mapped_column(ForeignKey("titles.id", ondelete="CASCADE"), primary_key=True)
+    embedding: Mapped[list[float]] = mapped_column(Vector(DIMENSIONS))
+    profile: Mapped[str] = mapped_column(String)
+    input_hash: Mapped[str] = mapped_column(String(64))
+    embedded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))

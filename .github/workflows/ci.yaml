@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:17-alpine
+        image: pgvector/pgvector:0.8.7-pg17-bookworm
         env:
           POSTGRES_USER: musefy
           POSTGRES_PASSWORD: test-only

@@ -8,10 +8,13 @@ from dataclasses import asdict
 
 from musefy_core.db import titles
 from musefy_core.db.session import database
+from musefy_core.embeddings import MODEL_ID, MODEL_REVISION, PROFILE, Embedder
 from musefy_core.schemas import Filters, Identity, Kind, Source
 from musefy_core.settings import Settings
 from musefy_scraper.runner import import_titles, preview, run_source, work
 from pydantic import ValidationError
+
+from musefy_cli.embeddings import populate
 
 
 class Arguments(argparse.Namespace):
@@ -29,6 +32,9 @@ class Arguments(argparse.Namespace):
     offset: int
     limit: int
     interval: int
+    batch_size: int
+    device: str
+    threads: int
 
 
 def positive(value: str) -> int:
@@ -66,6 +72,15 @@ def parser() -> argparse.ArgumentParser:
     listing.add_argument("--q")
     listing.add_argument("--offset", type=int, default=0)
     listing.add_argument("--limit", type=positive, default=20)
+    embed = commands.add_parser("embed", help="Index existing synopses; no scraping")
+    embed.add_argument("--batch-size", type=positive, default=32)
+    embed.add_argument("--max-items", type=positive)
+    embed.add_argument("--force", action="store_true")
+    embed.add_argument("--device", choices=["cpu", "cuda"], default="cpu")
+    embed.add_argument("--threads", type=positive, default=2)
+    warm = commands.add_parser("embedding-model", help="Download and validate the pinned local model")
+    warm.add_argument("--device", choices=["cpu", "cuda"], default="cpu")
+    warm.add_argument("--threads", type=positive, default=2)
     get = commands.add_parser("get")
     get.add_argument("id", type=positive)
     return root
@@ -75,7 +90,17 @@ async def execute(args: Arguments) -> int:
     settings = Settings()
     engine, sessions = database(settings)
     try:
-        if args.command == "preview":
+        if args.command in {"embed", "embedding-model"}:
+            embedder = Embedder(device=args.device, threads=args.threads, local_files_only=False)
+            if args.command == "embedding-model":
+                await embedder.embed_query("model validation")
+                print(json.dumps({"model": MODEL_ID, "revision": MODEL_REVISION, "profile": PROFILE}))
+            else:
+                embedding_counts = await populate(
+                    sessions, embedder, batch_size=args.batch_size, max_items=args.max_items, force=args.force
+                )
+                print(json.dumps(asdict(embedding_counts)))
+        elif args.command == "preview":
             identity = Identity(
                 source=Source(args.source or ""), source_type=Kind(args.source_type or ""), source_id=args.id
             )

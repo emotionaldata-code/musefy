@@ -6,7 +6,8 @@ x-app: &app
 
 services:
   postgres:
-    image: postgres:17-alpine
+    image: musefy-postgres:17-pgvector
+    build: ./infra/postgres
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-musefy}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}

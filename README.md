@@ -68,7 +68,8 @@ le revisioni Alembic committate, senza autogenerarle in produzione. Questo deplo
 ricrea i container e può causare una breve indisponibilità; non è un deploy senza
 interruzioni. Non usare `down -v`, `freshVolumes` o volumi casuali nei redeploy.
 
-Due servizi permanenti eseguono `musefy worker --source tmdb` e `--source jikan`.
+Due servizi nel profilo manuale `ingestion` possono eseguire `musefy worker --source tmdb` e `--source jikan`.
+Il deploy predefinito avvia solo PostgreSQL, migrazioni, API e frontend.
 Ogni fonte ha il proprio processo, limiter e lock PostgreSQL. Una passata percorre
 progressivamente il catalogo senza limite di schede; completata o interrotta,
 attende 3600 secondi prima di ripartire. Il client e il limiter vengono riutilizzati;
@@ -229,9 +230,71 @@ nei metadati. Il genere è esatto, la ricerca sul titolo è case-insensitive e t
 `GET /titles/facets` restituisce conteggi globali per tipo, anni e generi dal DB.
 Schemi e documentazione interattiva: `/docs`. Nessun endpoint di ingestion.
 
+## Embeddings e ricerca semantica
+
+Baseline: **una sinossi → un vettore**, richiesta → vettore → cosine similarity in
+PostgreSQL/pgvector. Modello MIT `intfloat/multilingual-e5-small`, revisione fissa
+`614241f622f53c4eeff9890bdc4f31cfecc418b3`, 384 dimensioni; prefissi `passage: ` e
+`query: `, mean pooling con attention mask, normalizzazione L2. Tokenizzazione
+con `truncation=True` a 512 token, inclusi prefisso e token speciali: la coda della
+sinossi può essere persa. Nessun enrichment, reranking o traduzione automatica.
+
+La migrazione `0ff20b5a3271` abilita `vector` e crea `title_embeddings`, separata dalle
+schede. Memorizza ID del titolo, vettore, fingerprint della configurazione, hash SHA256 della
+sinossi esatta e timestamp. Sinossi vuote escluse. Batch limitati, keyset pagination,
+commit per batch e upsert idempotente: rilanciare salta ciò che è già corrente.
+Sinossi modificate durante il calcolo non vengono salvate; quelle modificate dopo
+sono escluse dalla ricerca fino al prossimo batch. `--force` ricalcola esplicitamente.
+I nuovi titoli acquisiti richiedono un successivo batch manuale.
+
+```bash
+uv sync --all-packages --frozen
+uv run musefy embedding-model # scarica e verifica una volta il modello fissato
+uv run musefy embed --batch-size 32 --threads 2
+uv run musefy embed --max-items 100 --batch-size 16
+uv run musefy embed --force --batch-size 32
+curl --get 'http://127.0.0.1:8000/search' \
+  --data-urlencode 'q=indagine psicologica con misteri e colpi di scena' \
+  --data-urlencode 'source_type=anime' --data-urlencode 'limit=10'
+```
+
+`GET /search` accetta `q` (1–200 caratteri non vuoti), `source`, `source_type`, `year`,
+`genre`, `offset` e `limit` (1–100). Risposta `items: [{title, score}], offset, limit`;
+score è cosine similarity, non una probabilità. Ordine per distanza e ID in caso di
+parità. Per ora ricerca esatta, senza indice ANN: misurare la latenza al crescere del
+catalogo prima di aggiungere HNSW. I filtri sono espliciti, non estratti dal testo.
+
+API: un solo modello lazy condiviso, due thread CPU e inferenza serializzata fuori
+dall’event loop. Non scarica nulla nelle route: usa soltanto la cache locale;
+cache assente o modello indisponibile → 503. La build Docker preinstalla e verifica
+il modello in `/opt/models`; a runtime non servono API key né servizi di embedding.
+L’immagine contiene PyTorch **CPU**; il batch può usare `--device cuda` solo in un
+ambiente locale con PyTorch CUDA compatibile installato separatamente. Nessuno
+scraper viene avviato dai comandi di embedding.
+
+Sul server applicare prima lo schema, senza avviare ingestion:
+
+```bash
+docker compose -p musefy-production-6pe27w -f compose.production.yaml run --rm migrate
+```
+
+PostgreSQL di produzione resta su rete privata. Per un batch dal PC, aprire un
+forward SSH verso l’IP Docker corrente di PostgreSQL sulla rete `database`:
+
+```bash
+ssh -N -L 127.0.0.1:55433:IP_POSTGRES_CONTAINER:5432 ssh.edia-company.com
+# In un altro terminale: impostare DATABASE_URL con host 127.0.0.1:55433
+# usando le credenziali PostgreSQL locali protette, senza inserirle nella history.
+uv run musefy embed --batch-size 32 --threads 8
+```
+
+L’IP Docker può cambiare a ogni deploy: rilevarlo nuovamente con `docker inspect`.
+Nessuna porta PostgreSQL pubblica e nessun endpoint HTTP di scrittura.
+
 ## Ripresa, aggiornamenti e limiti
 
-Tre tabelle: `titles` con identità/filtri e metadati JSONB validati da Pydantic;
+Quattro tabelle, inclusa `title_embeddings` descritta sopra: `titles` con identità/filtri
+e metadati JSONB validati da Pydantic;
 `ingestion_items` con ID scoperti e passaggi parziali; `checkpoints` con cursori/versioni.
 ID e checkpoint sono salvati nella stessa transazione prima dei dettagli;
 upsert della scheda e completamento sono anch'essi atomici. Il vincolo univoco è
@@ -287,12 +350,18 @@ uv run ruff check packages tests migrations
 uv run ruff format --check packages tests migrations
 ```
 
+Costruire anche l’immagine PostgreSQL compatibile con il volume Alpine esistente:
+
+```bash
+docker build -t musefy-postgres:17-pgvector infra/postgres
+```
+
 Database di test **dedicato e distruttibile**, separato dal catalogo:
 
 ```bash
 docker run --rm -d --name musefy-test-postgres \
   -e POSTGRES_USER=musefy -e POSTGRES_PASSWORD=test-only -e POSTGRES_DB=musefy_test \
-  -p 127.0.0.1:55432:5432 postgres:17-alpine
+  -p 127.0.0.1:55432:5432 musefy-postgres:17-pgvector
 # Attendere che: docker exec musefy-test-postgres pg_isready -U musefy -d musefy_test
 TEST_DATABASE_URL=postgresql+asyncpg://musefy:test-only@127.0.0.1:55432/musefy_test uv run pytest -q
 docker stop musefy-test-postgres

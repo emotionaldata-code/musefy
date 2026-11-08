@@ -29,7 +29,8 @@ x-worker: &worker
 
 services:
   postgres:
-    image: postgres:17-alpine
+    image: musefy-postgres:17-pgvector
+    build: ./infra/postgres
     restart: unless-stopped
     environment:
       POSTGRES_USER: musefy
@@ -82,12 +83,14 @@ services:
         condition: service_healthy
     logging: *logging
   scraper-tmdb:
+    profiles: [ingestion]
     <<: *worker
     command: [musefy, worker, --source, tmdb, --interval, '3600']
     environment:
       <<: *scraper
       TMDB_READ_ACCESS_TOKEN: ${TMDB_READ_ACCESS_TOKEN:?Set TMDB_READ_ACCESS_TOKEN}
   scraper-jikan:
+    profiles: [ingestion]
     <<: *worker
     command: [musefy, worker, --source, jikan, --interval, '3600']
 

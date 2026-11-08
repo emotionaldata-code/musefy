@@ -4,12 +4,15 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from musefy_core.db.session import Sessions, database
+from musefy_core.embeddings import Embedder
 from musefy_core.settings import Settings
 
+from musefy_backend.dependencies import QueryEmbedder
 from musefy_backend.routes import router
+from musefy_backend.search import router as search_router
 
 
-def create_app(sessions: Sessions | None = None) -> FastAPI:
+def create_app(sessions: Sessions | None = None, embedder: QueryEmbedder | None = None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         if sessions is not None:
@@ -24,6 +27,7 @@ def create_app(sessions: Sessions | None = None) -> FastAPI:
             await engine.dispose()
 
     app = FastAPI(title="Musefy", lifespan=lifespan)
+    app.state.embedder = embedder if embedder is not None else Embedder()
     app.add_middleware(
         CORSMiddleware,
         allow_origins=Settings().cors_origins,
@@ -33,6 +37,7 @@ def create_app(sessions: Sessions | None = None) -> FastAPI:
     if sessions is not None:
         app.state.sessions = sessions
     app.include_router(router)
+    app.include_router(search_router)
     return app
 
 
