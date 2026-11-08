@@ -18,13 +18,11 @@ export function Chat({ active }: { active: boolean }) {
     useRecommendations();
   const conversation = useRef<HTMLDivElement>(null);
   const composer = useRef<HTMLTextAreaElement>(null);
-  const firstFormat = useRef<HTMLButtonElement>(null);
   const loadingMore = pending && (exchanges.at(-1)?.offset ?? 0) > 0;
 
   useEffect(() => {
     if (!active || !editing) return;
     if (kind) composer.current?.focus();
-    else firstFormat.current?.focus();
   }, [active, editing, kind]);
 
   useEffect(() => {
@@ -95,10 +93,8 @@ export function Chat({ active }: { active: boolean }) {
         }}
       >
         {exchanges.length === 0 ? (
-          <div className="chat-empty flex min-h-full flex-col items-center justify-center gap-3 px-3 py-8 text-center sm:py-16">
-            <h2 className="text-2xl font-medium tracking-tight sm:text-[1.75rem]">
-              Cosa vuoi farti consigliare?
-            </h2>
+          <div className="chat-empty">
+            <h2>Cosa vuoi farti consigliare?</h2>
             <p className="max-w-sm text-sm leading-relaxed text-muted-foreground">
               {kind
                 ? "Descrivi un tema, una trama o un’atmosfera."
@@ -107,15 +103,13 @@ export function Chat({ active }: { active: boolean }) {
             <div
               role="group"
               aria-label="Formato da consigliare"
-              className="mt-2 flex flex-wrap justify-center gap-2"
+              className="chat-formats"
             >
               {formats.map((format) => (
                 <Button
                   key={format}
-                  ref={format === formats[0] ? firstFormat : undefined}
-                  variant={kind === format ? "default" : "secondary"}
+                  variant={kind === format ? "default" : "ghost"}
                   aria-pressed={kind === format}
-                  className="min-h-11 px-5"
                   onClick={() => choose(format)}
                 >
                   {categoryName(format)}
@@ -173,7 +167,7 @@ export function Chat({ active }: { active: boolean }) {
             </div>
           )}
           <form
-            className="chat-composer mx-auto mt-3 flex w-full max-w-180 shrink-0 items-end gap-2 rounded-[1.75rem] bg-card p-2 sm:mt-4 sm:gap-3 sm:p-2.5"
+            className="chat-composer"
             aria-label="Invia un messaggio"
             onSubmit={submit}
           >
@@ -207,7 +201,6 @@ export function Chat({ active }: { active: boolean }) {
             <Button
               type="submit"
               size="icon"
-              className="icon-button"
               aria-label="Invia messaggio"
               disabled={!kind || !draft.trim() || pending}
             >

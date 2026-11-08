@@ -203,6 +203,11 @@ Font di sistema, feedback immediato sui controlli e rispetto di reduced motion.
 Stile True-black flat (seed 1722118383), con equivalente chiaro e locandine reali:
 il catalogo mette in primo piano le copertine, con attribuzione raccolta in basso.
 Verificato a 1440, 768 e 390 px; nessun dato dimostrativo nel catalogo locale.
+La navigazione raggruppa catalogo ed elenchi, con fonti e crediti espandibili.
+Azioni delle card sotto le copertine, controlli condivisi da almeno 44 px e
+filtri senza spostamenti di layout; verificato anche a 320 px. Il pulsante
+di aggiornamento è accanto alla ricerca. Logo, raggi e superfici sono condivisi
+tra accesso, catalogo, chat e dettaglio.
 
 Scaffold eseguito da CLI con `npm create vite@latest packages/frontend -- --template react-ts --no-interactive`,
 poi `npx shadcn@latest init --base radix --preset nova --yes --no-monorepo`
@@ -302,8 +307,8 @@ Schemi e documentazione interattiva: `/docs`. Nessun endpoint di ingestion.
 
 ### Elenchi personali
 
-Card e schede offrono **Già visto** (**Già letto** per i manga) e **Wishlist**.
-Le voci **Guarda più tardi** e **Già visti** in fondo alla sidebar aprono i due elenchi;
+Card e schede offrono **Già visto** (**Già letto** per i manga) e **Guarda più tardi**.
+Le voci **Guarda più tardi** e **Già visti** nella biblioteca della sidebar aprono i due elenchi;
 gli stati sono indipendenti e si possono rimuovere con lo stesso pulsante.
 
 La tabella `user_titles` contiene `user_id`, `title_id`, `collection` e `created_at`.

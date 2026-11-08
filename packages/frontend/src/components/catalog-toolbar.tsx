@@ -1,4 +1,4 @@
-import { Search, X } from "lucide-react";
+import { RefreshCw, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -36,8 +36,9 @@ function CatalogFilter({
     >
       <SelectTrigger
         aria-label={label}
-        title={value || label}
-        className="h-11 w-full min-w-0 rounded-full bg-card px-3 text-[14px] text-foreground hover:bg-muted active:bg-muted data-[size=default]:h-11 max-sm:min-h-[44px] [&_[data-slot=select-value]]:block [&_[data-slot=select-value]]:truncate"
+        title={options.find((option) => option.value === value)?.label ?? label}
+        data-filtered={Boolean(value)}
+        className="catalog-filter"
       >
         <SelectValue>
           {options.find((option) => option.value === value)?.label ?? label}
@@ -47,17 +48,17 @@ function CatalogFilter({
         position="popper"
         align="start"
         sideOffset={6}
-        className="max-h-80 border border-border shadow-lg"
+        className="max-h-80"
       >
         <SelectGroup>
-          <SelectItem value="all" className="min-h-10 px-3 pr-8 text-[14px]">
+          <SelectItem value="all" className="min-h-11 px-3 pr-8 text-sm">
             {allLabel}
           </SelectItem>
           {options.map((option) => (
             <SelectItem
               key={option.value}
               value={option.value}
-              className="min-h-10 px-3 pr-8 text-[14px]"
+              className="min-h-11 px-3 pr-8 text-sm"
             >
               {option.label}
             </SelectItem>
@@ -74,44 +75,58 @@ export function CatalogToolbar({
   facets,
   onSearch,
   onFilter,
+  onRefresh,
 }: {
   query: CatalogQuery;
   search: string;
   facets: Facets | null;
   onSearch: (value: string) => void;
   onFilter: (patch: Partial<CatalogQuery>) => void;
+  onRefresh: () => void;
 }) {
   return (
-    <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between xl:gap-5">
-      <div className="relative flex w-full items-center xl:max-w-80">
-        <Search
-          aria-hidden="true"
-          className="pointer-events-none absolute left-3.5 size-4 text-muted-foreground"
-        />
-        <label className="sr-only" htmlFor="search">
-          Cerca un titolo
-        </label>
-        <Input
-          id="search"
-          placeholder="Cerca un titolo…"
-          value={search}
-          maxLength={200}
-          onChange={(event) => onSearch(event.target.value)}
-          className="h-11 rounded-full bg-card pr-11 pl-10 text-[16px] max-sm:min-h-[44px] md:text-[14px]"
-        />
-        {search && (
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            className="absolute right-1"
-            aria-label="Cancella ricerca"
-            onClick={() => onSearch("")}
-          >
-            <X className="size-4" />
-          </Button>
-        )}
+    <div className="catalog-toolbar" role="search" aria-label="Cerca nel catalogo">
+      <div className="catalog-search-row">
+        <div className="catalog-search">
+          <Search
+            aria-hidden="true"
+            className="pointer-events-none absolute left-3.5 size-4 text-muted-foreground"
+          />
+          <label className="sr-only" htmlFor="search">
+            Cerca un titolo
+          </label>
+          <Input
+            id="search"
+            type="search"
+            placeholder="Cerca un titolo…"
+            value={search}
+            maxLength={200}
+            onChange={(event) => onSearch(event.target.value)}
+            className="catalog-search-input"
+          />
+          {search && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute right-1"
+              aria-label="Cancella ricerca"
+              onClick={() => onSearch("")}
+            >
+              <X className="size-4" />
+            </Button>
+          )}
+        </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onRefresh}
+          aria-label="Aggiorna catalogo"
+          title="Aggiorna catalogo"
+        >
+          <RefreshCw aria-hidden="true" />
+        </Button>
       </div>
-      <div className="grid min-w-0 grid-cols-3 gap-2 xl:w-[32rem] xl:shrink-0">
+      <div className="catalog-filters">
         <CatalogFilter
           label="Fonte"
           allLabel="Tutte le fonti"

@@ -97,9 +97,9 @@ export function TitleDetail({
                         {title.genres.join(" · ")}
                       </p>
                     )}
-                    <TitleActions title={title} />
                   </div>
                 </div>
+                <TitleActions title={title} />
                 {metadata?.synopsis && (
                   <section className="detail-section">
                     <h3>Sinossi</h3>

@@ -10,11 +10,11 @@ function Recommendation({ hit }: { hit: SearchHit }) {
     <a
       href={`#title/${title.id}`}
       aria-label={`Apri ${title.title}`}
-      className="group flex min-w-0 gap-4 rounded-2xl bg-card p-3 transition-colors hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring sm:p-4"
+      className="recommendation group"
     >
       <Poster
         title={title}
-        className="w-16 shrink-0 self-start rounded-lg sm:w-20 [&_.poster-missing]:p-2 [&_.poster-missing_span]:hidden"
+        className="w-16 shrink-0 self-start sm:w-20"
       />
       <div className="min-w-0 py-0.5">
         <h3 className="font-semibold leading-snug [overflow-wrap:anywhere] group-hover:underline">

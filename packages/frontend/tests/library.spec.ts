@@ -77,7 +77,7 @@ async function openList(page: Page, label: string, mobile: boolean) {
     .getByRole("button", { name: label, exact: true })
     .click();
 }
-for (const width of [1440, 768, 390]) {
+for (const width of [1440, 768, 390, 320]) {
   test(`saved lists persist and stay consistent at ${width}px`, async ({
     page,
   }) => {
@@ -86,7 +86,7 @@ for (const width of [1440, 768, 390]) {
     await page.goto("/?view=catalog");
     const card = page.locator(".title-card").first();
     const wishlist = card.getByRole("button", {
-      name: "Wishlist: Una storia",
+      name: "Guarda più tardi: Una storia",
       exact: true,
     });
     await card.hover();
@@ -114,11 +114,11 @@ for (const width of [1440, 768, 390]) {
     await card.getByRole("link", { name: "Apri Una storia" }).click();
     const dialog = page.getByRole("dialog");
     await expect(
-      dialog.getByRole("button", { name: "Wishlist: Una storia", exact: true }),
+      dialog.getByRole("button", { name: "Guarda più tardi: Una storia", exact: true }),
     ).toHaveAttribute("aria-pressed", "true");
     await page.screenshot({ path: `/tmp/musefy-actions-detail-${width}.png`, fullPage: true });
     await dialog
-      .getByRole("button", { name: "Wishlist: Una storia", exact: true })
+      .getByRole("button", { name: "Guarda più tardi: Una storia", exact: true })
       .click();
     await page.keyboard.press("Escape");
     await expect(wishlist).toHaveAttribute("aria-pressed", "false");
@@ -129,7 +129,7 @@ for (const width of [1440, 768, 390]) {
       page
         .locator(".title-card")
         .first()
-        .getByRole("button", { name: "Wishlist: Una storia", exact: true }),
+        .getByRole("button", { name: "Guarda più tardi: Una storia", exact: true }),
     ).toHaveAttribute("aria-pressed", "true");
     await openList(page, "Guarda più tardi", width <= 1000);
     await expect(page).toHaveURL(/view=wishlist/);
@@ -139,7 +139,7 @@ for (const width of [1440, 768, 390]) {
     await expect(page.locator(".title-card")).toHaveCount(1);
     await page.locator(".title-card").first().hover();
     await page
-      .getByRole("button", { name: "Wishlist: Una storia", exact: true })
+      .getByRole("button", { name: "Guarda più tardi: Una storia", exact: true })
       .click();
     await expect(
       page.getByRole("heading", { name: "Il tuo elenco è ancora vuoto" }),
@@ -156,6 +156,7 @@ for (const width of [1440, 768, 390]) {
 test("failed writes preserve state, prevent duplicates and can be retried", async ({
   page,
 }) => {
+  await page.setViewportSize({ width: 320, height: 568 });
   await backend(page);
   let release: () => void = () => {};
   const blocked = new Promise<void>((resolve) => {
@@ -170,7 +171,7 @@ test("failed writes preserve state, prevent duplicates and can be retried", asyn
   await page.goto("/?view=catalog");
   const card = page.locator(".title-card").first();
   const wishlist = card.getByRole("button", {
-    name: "Wishlist: Una storia",
+    name: "Guarda più tardi: Una storia",
     exact: true,
   });
   await card.hover();
@@ -184,6 +185,9 @@ test("failed writes preserve state, prevent duplicates and can be retried", asyn
   await expect(card.getByRole("alert")).toContainText(
     "Salvataggio non riuscito",
   );
+  expect(
+    await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+  ).toBe(true);
   await expect(wishlist).toHaveAttribute("aria-pressed", "false");
   await page.unroute("**/api/library/wishlist/1");
   await wishlist.click();
@@ -198,7 +202,7 @@ test("removing a saved title does not skip the next page", async ({ page }) => {
   await expect(page.locator(".title-card").first()).toBeVisible();
   await page.locator(".title-card").first().hover();
   await page
-    .getByRole("button", { name: "Wishlist: Una storia", exact: true })
+    .getByRole("button", { name: "Guarda più tardi: Una storia", exact: true })
     .click();
   await expect(
     page.getByRole("link", { name: "Apri Una storia", exact: true }),
@@ -220,7 +224,7 @@ test("expired sessions during a write return to login", async ({ page }) => {
   await page.goto("/?view=catalog");
   await page.locator(".title-card").first().hover();
   await page
-    .getByRole("button", { name: "Wishlist: Una storia", exact: true })
+    .getByRole("button", { name: "Guarda più tardi: Una storia", exact: true })
     .click();
   await expect(
     page.getByRole("link", { name: "Continua con Google" }),
@@ -234,7 +238,7 @@ test("refresh reads membership changes from another browser", async ({
   const states = await backend(page);
   await page.goto("/?view=catalog");
   const wishlist = page.getByRole("button", {
-    name: "Wishlist: Una storia",
+    name: "Guarda più tardi: Una storia",
     exact: true,
   });
   await page.locator(".title-card").first().hover();
@@ -245,45 +249,40 @@ test("refresh reads membership changes from another browser", async ({
   await expect(wishlist).toHaveAttribute("aria-pressed", "false");
 });
 
-test("card actions appear on hover and keyboard focus without opening the title", async ({ page }) => {
+test("card actions are discoverable and keyboard accessible without opening the title", async ({ page }) => {
   await backend(page);
   await page.goto("/?view=catalog");
   const card = page.locator(".title-card").first();
   const actions = card.getByRole("group");
   const watched = card.getByRole("button", { name: "Già visto: Una storia", exact: true });
-  await expect(actions).toHaveCSS("opacity", "0");
-  await card.hover();
-  await expect(actions).toHaveCSS("opacity", "1");
+  await expect(watched).toBeVisible();
   const posterBox = await card.locator(".poster").boundingBox();
   const actionsBox = await actions.boundingBox();
   expect(posterBox).not.toBeNull();
-  expect(actionsBox!.x + actionsBox!.width).toBeLessThan(posterBox!.x + posterBox!.width);
-  expect(actionsBox!.y).toBeGreaterThan(posterBox!.y);
+  expect(actionsBox!.y).toBeGreaterThanOrEqual(posterBox!.y + posterBox!.height);
   await watched.click();
   await expect(watched).toHaveAttribute("aria-pressed", "true");
   await expect(page).not.toHaveURL(/#title/);
   await page.mouse.move(0, 0);
   await watched.blur();
-  await expect(actions).toHaveCSS("opacity", "0");
+  await expect(watched).toBeVisible();
   await card.getByRole("link").focus();
   await page.keyboard.press("Tab");
   await expect(watched).toBeFocused();
-  await expect(actions).toHaveCSS("opacity", "1");
   await page.keyboard.press("Space");
   await expect(watched).toHaveAttribute("aria-pressed", "false");
   await page.getByRole("button", { name: "Attiva tema scuro" }).click();
-  await card.hover();
-  await expect(actions).toHaveCSS("opacity", "1");
+  await expect(watched).toBeVisible();
   await page.screenshot({ path: "/tmp/musefy-actions-dark.png", fullPage: true });
   await card.getByRole("link").click();
   await expect(page.getByRole("dialog")).toBeVisible();
   await page.screenshot({ path: "/tmp/musefy-actions-detail-dark.png", fullPage: true });
   await page.keyboard.press("Escape");
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await expect(actions).toHaveCSS("transition-duration", "0s");
+  await expect(watched).toHaveCSS("transition-duration", "0s");
 });
 
-test("touch actions remain visible with circular targets and rounded detail buttons", async ({ browser, baseURL }) => {
+test("touch actions have accessible targets and stay consistent with title details", async ({ browser, baseURL }) => {
   const context = await browser.newContext({
     baseURL,
     viewport: { width: 390, height: 844 },
@@ -296,21 +295,18 @@ test("touch actions remain visible with circular targets and rounded detail butt
     await page.goto("/?view=catalog");
     const card = page.locator(".title-card").first();
     const actions = card.getByRole("group");
-    const wishlist = card.getByRole("button", { name: "Wishlist: Una storia", exact: true });
+    const wishlist = card.getByRole("button", { name: "Guarda più tardi: Una storia", exact: true });
     await expect(actions).toHaveCSS("opacity", "1");
     await expect(wishlist).toHaveCSS("width", "44px");
     await expect(wishlist).toHaveCSS("height", "44px");
-    await expect(wishlist).toHaveCSS("border-radius", "999px");
     await wishlist.tap();
     await expect(wishlist).toHaveAttribute("aria-pressed", "true");
     await expect(wishlist).toBeEnabled();
-    await expect(wishlist).toHaveCSS("background-color", "rgb(23, 23, 23)");
     await expect(page).not.toHaveURL(/#title/);
     await page.screenshot({ path: "/tmp/musefy-actions-touch.png", fullPage: true });
     await card.getByRole("link").tap();
-    const detailWishlist = page.getByRole("dialog").getByRole("button", { name: "Wishlist: Una storia", exact: true });
-    await expect(detailWishlist).toHaveText("Wishlist");
-    await expect(detailWishlist).toHaveCSS("border-radius", "999px");
+    const detailWishlist = page.getByRole("dialog").getByRole("button", { name: "Guarda più tardi: Una storia", exact: true });
+    await expect(detailWishlist).toHaveText("Guarda più tardi");
     await expect(detailWishlist).toHaveAttribute("aria-pressed", "true");
     await page.screenshot({ path: "/tmp/musefy-actions-detail-touch.png", fullPage: true });
   } finally {

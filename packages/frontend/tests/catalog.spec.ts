@@ -58,9 +58,9 @@ test("browse continuously, search, details and empty results", async ({
   ).toHaveCount(0);
   await expect(page).not.toHaveURL(/offset=/);
   await page
-    .getByRole("textbox", { name: "Cerca un titolo" })
+    .getByRole("searchbox", { name: "Cerca un titolo" })
     .scrollIntoViewIfNeeded();
-  await page.getByRole("textbox", { name: "Cerca un titolo" }).fill("storia");
+  await page.getByRole("searchbox", { name: "Cerca un titolo" }).fill("storia");
   await expect(page).toHaveURL(/q=storia/);
   await expect(page).not.toHaveURL(/offset=15/);
   await page.getByRole("link", { name: "Apri Una storia" }).click();
@@ -72,7 +72,7 @@ test("browse continuously, search, details and empty results", async ({
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).not.toBeVisible();
   await page
-    .getByRole("textbox", { name: "Cerca un titolo" })
+    .getByRole("searchbox", { name: "Cerca un titolo" })
     .fill("inesistente");
   await expect(
     page.getByRole("heading", { name: "Nessun titolo trovato" }),
@@ -107,7 +107,7 @@ test("phone category filters, API error and retry", async ({ page }) => {
   ).toBeVisible();
 });
 
-for (const width of [1440, 390]) {
+for (const width of [1440, 390, 320]) {
   test(`source, year and genre menus at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     await page.goto("/?offset=15");

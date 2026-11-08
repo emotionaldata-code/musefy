@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { Brand } from "@/components/brand";
 import { apiBaseURL } from "@/lib/api";
 
 function loginURL(): string {
@@ -26,17 +27,7 @@ export function Login({
       </div>
       <section className="login-content" aria-labelledby="login-heading">
         <div className="brand login-brand" aria-label="Musefy">
-          <svg viewBox="0 0 30 30" fill="none" aria-hidden="true">
-            <path
-              d="M3 24V6l12 12L27 6v18M3 6l12 12L27 6"
-              stroke="currentColor"
-              strokeWidth="2.4"
-              strokeLinejoin="round"
-            />
-          </svg>
-          <span>
-            musefy<span className="brand-period">.</span>
-          </span>
+          <Brand />
         </div>
         <h1 id="login-heading">Accedi a Musefy</h1>
         <p>

@@ -95,7 +95,7 @@ export function CatalogResults({
             {filtered || query.source_type
               ? "Prova un altro titolo o modifica i filtri."
               : collection === "wishlist"
-                ? "Usa Wishlist sulle card per ritrovare qui i titoli da guardare o leggere."
+                ? "Salva un titolo con il segnalibro per ritrovarlo qui."
                 : collection === "watched"
                   ? "Segna i titoli come già visti o letti per ritrovarli qui."
                   : "Le opere importate compariranno qui."}

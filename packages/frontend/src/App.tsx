@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { RefreshCw, PanelLeft } from "lucide-react";
+import { PanelLeft } from "lucide-react";
 import { Attribution, SidebarContent } from "@/components/app-sidebar";
 import { useMobile } from "@/lib/use-mobile";
 import {
@@ -174,7 +174,7 @@ function AuthenticatedApp({
         {mobile ? (
           <SheetContent
             side="left"
-            className="mobile-sidebar data-[side=left]:w-[min(20rem,calc(100vw-3rem))] gap-0 border-0 bg-background p-5 pt-[max(1.25rem,env(safe-area-inset-top))]"
+            className="mobile-sidebar data-[side=left]:w-[min(20rem,calc(100vw-3rem))] gap-0 border-0 p-5 pt-[max(1.25rem,env(safe-area-inset-top))]"
             showCloseButton={false}
             aria-describedby={undefined}
           >
@@ -210,7 +210,6 @@ function AuthenticatedApp({
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="icon-button"
                       aria-label="Apri menu"
                       title="Apri menu"
                     >
@@ -222,7 +221,6 @@ function AuthenticatedApp({
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="icon-button"
                       aria-label={
                         sidebarOpen ? "Chiudi sidebar" : "Apri sidebar"
                       }
@@ -235,21 +233,6 @@ function AuthenticatedApp({
                 <h1>{view === "chat" ? "Musefy" : heading}</h1>
               </div>
               <div className="heading-actions">
-                {view !== "chat" && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="icon-button"
-                    onClick={() => {
-                      library.refresh();
-                      setRevision((value) => value + 1);
-                    }}
-                    aria-label="Aggiorna catalogo"
-                    title="Aggiorna catalogo"
-                  >
-                    <RefreshCw size={17} />
-                  </Button>
-                )}
                 <ThemeToggle />
                 <AccountMenu
                   user={auth.user}
@@ -268,6 +251,10 @@ function AuthenticatedApp({
                   facets={facets}
                   onSearch={setSearch}
                   onFilter={update}
+                  onRefresh={() => {
+                    library.refresh();
+                    setRevision((value) => value + 1);
+                  }}
                 />
                 <CatalogResults
                   key={`${revision}:${collection ? library.revisions[collection] : 0}:${titlesPath(query, 0, collection)}`}

@@ -22,7 +22,7 @@ export function TitleActions({
     Icon: typeof Check;
   }[] = [
     { collection: "watched", label: watchedLabel, Icon: Check },
-    { collection: "wishlist", label: "Wishlist", Icon: Bookmark },
+    { collection: "wishlist", label: "Guarda più tardi", Icon: Bookmark },
   ];
   return (
     <div
