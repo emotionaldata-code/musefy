@@ -25,6 +25,7 @@ export const categories: { value: Kind | ""; label: string }[] = [
 export const categoryName = (kind: Kind): string =>
   categories.find((item) => item.value === kind)?.label ?? kind;
 export const pageSize = 15;
+export const docsURL = `${import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000"}/docs`;
 
 export async function request<T>(
   path: string,

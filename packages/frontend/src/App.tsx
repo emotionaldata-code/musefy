@@ -18,6 +18,7 @@ import { TitleCard } from "@/components/title-card";
 import { TitleDetail } from "@/components/title-detail";
 import {
   categories,
+  docsURL,
   pageSize,
   titlesPath,
   type CatalogQuery,
@@ -156,7 +157,7 @@ export default function App() {
         <div className="sidebar-bottom">
           <p>Storie, in ogni formato.</p>
           <span>Metadati da TMDB e Jikan.</span>
-          <a href="http://127.0.0.1:8000/docs" target="_blank" rel="noreferrer">
+          <a href={docsURL} target="_blank" rel="noreferrer">
             Esplora le API <ExternalLink size={12} />
           </a>
         </div>
