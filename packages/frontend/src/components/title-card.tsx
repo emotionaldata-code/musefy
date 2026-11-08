@@ -1,12 +1,13 @@
 import { ImageOff } from "lucide-react";
 import { useState } from "react";
 import { categoryName, type Title } from "@/lib/api";
+import { TitleActions } from "./title-actions";
 
 export function Poster({
   title,
   className = "",
 }: {
-  title: Title;
+  title: Pick<Title, "title" | "metadata">;
   className?: string;
 }) {
   const [failed, setFailed] = useState(false);
@@ -32,18 +33,17 @@ export function Poster({
 
 export function TitleCard({ title }: { title: Title }) {
   return (
-    <a
-      className="title-card"
-      href={`#title/${title.id}`}
-      aria-label={`Apri ${title.title}`}
-    >
-      <Poster title={title} />
-      <h2>{title.title}</h2>
-      <p>
-        {[title.year, categoryName(title.source_type)]
-          .filter(Boolean)
-          .join(" · ")}
-      </p>
-    </a>
+    <article className="title-card">
+      <a href={`#title/${title.id}`} aria-label={`Apri ${title.title}`}>
+        <Poster title={title} />
+        <h2>{title.title}</h2>
+        <p>
+          {[title.year, categoryName(title.source_type)]
+            .filter(Boolean)
+            .join(" · ")}
+        </p>
+      </a>
+      <TitleActions title={title} />
+    </article>
   );
 }

@@ -27,8 +27,11 @@ import {
   titlesPath,
   type CatalogQuery,
   type Facets,
+  type AppView,
+  type Collection,
 } from "@/lib/api";
 import { useResource } from "@/lib/use-resource";
+import { LibraryProvider, useLibrary } from "@/lib/use-library";
 
 const initialParams = new URLSearchParams(window.location.search);
 initialParams.delete("auth_error");
@@ -48,7 +51,11 @@ export default function App() {
   const auth = useAuth();
   if (auth.status !== "authenticated")
     return <Login status={auth.status} retry={auth.retry} />;
-  return <AuthenticatedApp auth={auth} />;
+  return (
+    <LibraryProvider key={auth.user.id}>
+      <AuthenticatedApp auth={auth} />
+    </LibraryProvider>
+  );
 }
 
 function AuthenticatedApp({
@@ -56,9 +63,18 @@ function AuthenticatedApp({
 }: {
   auth: ReturnType<typeof useAuth> & { status: "authenticated" };
 }) {
-  const [view, setView] = useState<"chat" | "catalog">(
-    initialParams.size || window.location.hash ? "catalog" : "chat",
+  const [view, setView] = useState<AppView>(
+    initialParams.get("view") === "wishlist"
+      ? "wishlist"
+      : initialParams.get("view") === "watched"
+        ? "watched"
+        : initialParams.size || window.location.hash
+          ? "catalog"
+          : "chat",
   );
+  const library = useLibrary();
+  const collection =
+    view === "watched" || view === "wishlist" ? view : undefined;
   const mobile = useMobile();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -73,8 +89,12 @@ function AuthenticatedApp({
   const [id, setId] = useState(selectedId);
   const { data: facets } = useResource<Facets>("/titles/facets", revision);
   const heading =
-    categories.find((category) => category.value === query.source_type)
-      ?.label ?? "Catalogo";
+    collection === "wishlist"
+      ? "Guarda più tardi"
+      : collection === "watched"
+        ? "Già visti"
+        : (categories.find((category) => category.value === query.source_type)
+            ?.label ?? "Catalogo");
 
   function update(patch: Partial<CatalogQuery>) {
     setQuery((current) => ({
@@ -106,8 +126,8 @@ function AuthenticatedApp({
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "instant" });
     const params = new URLSearchParams();
-    if (view === "catalog") {
-      params.set("view", "catalog");
+    if (view !== "chat") {
+      params.set("view", view);
       Object.entries(query).forEach(([key, value]) => {
         if (value !== "") params.set(key, String(value));
       });
@@ -138,6 +158,12 @@ function AuthenticatedApp({
     setMobileOpen(false);
   }
 
+  function navigateCollection(next: Collection) {
+    reset();
+    setView(next);
+    setMobileOpen(false);
+  }
+
   return (
     <Sheet open={mobile && mobileOpen} onOpenChange={setMobileOpen}>
       <Collapsible
@@ -158,6 +184,7 @@ function AuthenticatedApp({
               query={query}
               facets={facets}
               onNavigate={navigate}
+              onCollection={navigateCollection}
               onClose={() => setMobileOpen(false)}
             />
           </SheetContent>
@@ -169,6 +196,7 @@ function AuthenticatedApp({
                 query={query}
                 facets={facets}
                 onNavigate={navigate}
+                onCollection={navigateCollection}
               />
             </aside>
           </CollapsibleContent>
@@ -207,12 +235,15 @@ function AuthenticatedApp({
                 <h1>{view === "chat" ? "Musefy" : heading}</h1>
               </div>
               <div className="heading-actions">
-                {view === "catalog" && (
+                {view !== "chat" && (
                   <Button
                     variant="ghost"
                     size="icon"
                     className="icon-button"
-                    onClick={() => setRevision((value) => value + 1)}
+                    onClick={() => {
+                      library.refresh();
+                      setRevision((value) => value + 1);
+                    }}
                     aria-label="Aggiorna catalogo"
                     title="Aggiorna catalogo"
                   >
@@ -229,7 +260,7 @@ function AuthenticatedApp({
               </div>
             </div>
             <Chat active={view === "chat"} />
-            {view === "catalog" && (
+            {view !== "chat" && (
               <>
                 <CatalogToolbar
                   query={query}
@@ -239,8 +270,9 @@ function AuthenticatedApp({
                   onFilter={update}
                 />
                 <CatalogResults
-                  key={`${revision}:${titlesPath(query)}`}
+                  key={`${revision}:${collection ? library.revisions[collection] : 0}:${titlesPath(query, 0, collection)}`}
                   query={query}
+                  collection={collection}
                   reset={reset}
                 />
                 <footer className="mobile-attribution">

@@ -1,5 +1,7 @@
 import {
   BookOpen,
+  Bookmark,
+  Check,
   Clapperboard,
   ExternalLink,
   Film,
@@ -9,15 +11,23 @@ import {
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { categories, docsURL, type CatalogQuery, type Facets } from "@/lib/api";
+import {
+  categories,
+  docsURL,
+  type AppView,
+  type Collection,
+  type CatalogQuery,
+  type Facets,
+} from "@/lib/api";
 
 const icons = [Layers, Film, Tv, Clapperboard, BookOpen];
 
 type SidebarProps = {
-  view: "chat" | "catalog";
+  view: AppView;
   query: CatalogQuery;
   facets: Facets | null;
   onNavigate: (type: string | null) => void;
+  onCollection: (collection: Collection) => void;
   onClose?: () => void;
 };
 
@@ -26,6 +36,7 @@ export function SidebarContent({
   query,
   facets,
   onNavigate,
+  onCollection,
   onClose,
 }: SidebarProps) {
   const total = Object.values(facets?.counts ?? {}).reduce(
@@ -101,6 +112,28 @@ export function SidebarContent({
               </Button>
             );
           })}
+        </nav>
+        <nav
+          className="sidebar-nav sidebar-library"
+          aria-label="I tuoi elenchi"
+        >
+          {(
+            [
+              { value: "wishlist", label: "Guarda più tardi", Icon: Bookmark },
+              { value: "watched", label: "Già visti", Icon: Check },
+            ] as const
+          ).map(({ value, label, Icon }) => (
+            <Button
+              key={value}
+              variant="ghost"
+              className={`nav-item ${view === value ? "active" : ""}`}
+              aria-current={view === value ? "page" : undefined}
+              onClick={() => onCollection(value)}
+            >
+              <Icon size={18} strokeWidth={1.5} aria-hidden="true" />
+              <span>{label}</span>
+            </Button>
+          ))}
         </nav>
         <div className="sidebar-bottom">
           <Attribution />

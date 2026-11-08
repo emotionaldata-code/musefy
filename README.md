@@ -1,7 +1,7 @@
 # Musefy
 
 Catalogo asincrono: Python 3.13+, TMDB (film/TV), schema Jikan v4 (anime e manga),
-PostgreSQL, CLI, API FastAPI di sola lettura e frontend React/TypeScript Vite + shadcn.
+PostgreSQL, CLI, API FastAPI e frontend React/TypeScript Vite + shadcn.
 Accesso con Google SSO, account provisionati al primo login e sessioni JWT in cookie HttpOnly.
 Scaffold creato con `uv init` (workspace) e `alembic init -t async`.
 
@@ -299,6 +299,29 @@ nei metadati. Il genere è esatto, la ricerca sul titolo è case-insensitive e t
 `%`/`_` letteralmente. `GET /titles/{id}` restituisce 404 se assente.
 `GET /titles/facets` restituisce conteggi globali per tipo, anni e generi dal DB.
 Schemi e documentazione interattiva: `/docs`. Nessun endpoint di ingestion.
+
+### Elenchi personali
+
+Card e schede offrono **Già visto** (**Già letto** per i manga) e **Wishlist**.
+Le voci **Guarda più tardi** e **Già visti** in fondo alla sidebar aprono i due elenchi;
+gli stati sono indipendenti e si possono rimuovere con lo stesso pulsante.
+
+La tabella `user_titles` contiene `user_id`, `title_id`, `collection` e `created_at`.
+La chiave primaria composta impedisce duplicati; le foreign key con cancellazione
+in cascata collegano `users.id` e `titles.id`. L'account è quello della sessione SSO,
+mai un'email o un ID fornito dal client. Un indice serve lettura e ordinamento per elenco.
+
+- `GET /library/{collection}`: `watched` o `wishlist`, stessi filtri e paginazione del
+  catalogo, ordine di aggiunta decrescente con ID titolo come spareggio.
+- `PUT /library/{collection}/{title_id}` aggiunge; `DELETE` rimuove. Entrambi sono
+  idempotenti, richiedono sessione e Origin frontend autorizzato e restituiscono
+  `{watched, wishlist}`. Nessun accesso agli elenchi di altri account.
+- `GET /titles` e `GET /titles/{id}` includono `library: {watched, wishlist}` per
+  l'utente corrente, recuperato in blocco per pagina senza richieste per singola card.
+
+Applicare `alembic upgrade head` prima di avviare l'API aggiornata. Non servono
+nuovi scope Google, credenziali o variabili d'ambiente. I tipi frontend sono
+generati dallo schema OpenAPI; gli stati personali rimangono in memoria e nel DB.
 
 ## Embeddings e ricerca semantica
 

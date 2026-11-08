@@ -107,3 +107,16 @@ class AuthSessionRow(Base):
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+
+
+class UserTitleRow(Base):
+    __tablename__ = "user_titles"
+    __table_args__ = (
+        CheckConstraint("collection IN ('watched', 'wishlist')", name="ck_user_titles_collection"),
+        Index("ix_user_titles_collection", "user_id", "collection", "created_at", "title_id"),
+    )
+
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    title_id: Mapped[int] = mapped_column(ForeignKey("titles.id", ondelete="CASCADE"), primary_key=True)
+    collection: Mapped[str] = mapped_column(String(10), primary_key=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))

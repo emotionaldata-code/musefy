@@ -1,4 +1,4 @@
-from sqlalchemy import func, select
+from sqlalchemy import Select, func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -42,7 +42,7 @@ async def get(session: AsyncSession, title_id: int) -> StoredTitle | None:
     return normalized(row) if row else None
 
 
-async def list_titles(session: AsyncSession, filters: Filters) -> TitlePage:
+def filtered_titles(filters: Filters) -> Select[tuple[TitleRow]]:
     statement = select(TitleRow)
     for column, value in (
         (TitleRow.source, filters.source),
@@ -56,6 +56,11 @@ async def list_titles(session: AsyncSession, filters: Filters) -> TitlePage:
     if filters.q:
         escaped = filters.q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
         statement = statement.where(TitleRow.title.ilike(f"%{escaped}%", escape="\\"))
+    return statement
+
+
+async def list_titles(session: AsyncSession, filters: Filters) -> TitlePage:
+    statement = filtered_titles(filters)
     total = await session.scalar(select(func.count()).select_from(statement.subquery()))
     rows = await session.scalars(statement.order_by(TitleRow.id).offset(filters.offset).limit(filters.limit))
     return TitlePage(

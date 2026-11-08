@@ -140,6 +140,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/library/{collection}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Collection */
+        get: operations["list_collection_library__collection__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/library/{collection}/{title_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Add Title */
+        put: operations["add_title_library__collection___title_id__put"];
+        post?: never;
+        /** Remove Title */
+        delete: operations["remove_title_library__collection___title_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/search": {
         parameters: {
             query?: never;
@@ -172,6 +207,11 @@ export interface components {
             /** Genres */
             genres: string[];
         };
+        /**
+         * Collection
+         * @enum {string}
+         */
+        Collection: "watched" | "wishlist";
         /** Credit */
         Credit: {
             /** Name */
@@ -206,6 +246,54 @@ export interface components {
          * @enum {string}
          */
         Kind: "movie" | "tv" | "anime" | "manga";
+        /** LibraryPage */
+        LibraryPage: {
+            /** Items */
+            items: components["schemas"]["LibraryTitle"][];
+            /** Total */
+            total: number;
+            /** Offset */
+            offset: number;
+            /** Limit */
+            limit: number;
+        };
+        /** LibraryState */
+        LibraryState: {
+            /**
+             * Watched
+             * @default false
+             */
+            watched: boolean;
+            /**
+             * Wishlist
+             * @default false
+             */
+            wishlist: boolean;
+        };
+        /** LibraryTitle */
+        LibraryTitle: {
+            source: components["schemas"]["Source"];
+            source_type: components["schemas"]["Kind"];
+            /** Source Id */
+            source_id: number;
+            /** Title */
+            title: string;
+            /** Url */
+            url: string;
+            /** Year */
+            year?: number | null;
+            /** Genres */
+            genres?: string[];
+            /**
+             * Fetched At
+             * Format: date-time
+             */
+            fetched_at: string;
+            metadata: components["schemas"]["Metadata"];
+            /** Id */
+            id: number;
+            library?: components["schemas"]["LibraryState"];
+        };
         /** Metadata */
         Metadata: {
             /** Api Base Url */
@@ -322,17 +410,6 @@ export interface components {
             metadata: components["schemas"]["Metadata"];
             /** Id */
             id: number;
-        };
-        /** TitlePage */
-        TitlePage: {
-            /** Items */
-            items: components["schemas"]["StoredTitle"][];
-            /** Total */
-            total: number;
-            /** Offset */
-            offset: number;
-            /** Limit */
-            limit: number;
         };
         /** User */
         User: {
@@ -514,7 +591,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TitlePage"];
+                    "application/json": components["schemas"]["LibraryPage"];
                 };
             };
             /** @description Validation Error */
@@ -565,7 +642,110 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["StoredTitle"];
+                    "application/json": components["schemas"]["LibraryTitle"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_collection_library__collection__get: {
+        parameters: {
+            query?: {
+                source?: components["schemas"]["Source"] | null;
+                source_type?: components["schemas"]["Kind"] | null;
+                year?: number | null;
+                genre?: string | null;
+                q?: string | null;
+                offset?: number;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                collection: components["schemas"]["Collection"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LibraryPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_title_library__collection___title_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                collection: components["schemas"]["Collection"];
+                title_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LibraryState"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_title_library__collection___title_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                collection: components["schemas"]["Collection"];
+                title_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LibraryState"];
                 };
             };
             /** @description Validation Error */

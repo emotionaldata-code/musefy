@@ -1,7 +1,10 @@
 import type { components } from "./api-schema";
 
-export type Title = components["schemas"]["StoredTitle"];
-export type TitlePage = components["schemas"]["TitlePage"];
+export type Title = components["schemas"]["LibraryTitle"];
+export type TitlePage = components["schemas"]["LibraryPage"];
+export type Collection = components["schemas"]["Collection"];
+export type LibraryState = components["schemas"]["LibraryState"];
+export type AppView = "chat" | "catalog" | Collection;
 export type Facets = components["schemas"]["CatalogFacets"];
 export type Kind = components["schemas"]["Kind"];
 export type Source = components["schemas"]["Source"];
@@ -60,7 +63,11 @@ export async function request<T>(
   return response.json() as Promise<T>;
 }
 
-export function titlesPath(query: CatalogQuery, offset = 0): string {
+export function titlesPath(
+  query: CatalogQuery,
+  offset = 0,
+  collection?: Collection,
+): string {
   const params = new URLSearchParams({
     limit: String(pageSize),
     offset: String(offset),
@@ -68,5 +75,5 @@ export function titlesPath(query: CatalogQuery, offset = 0): string {
   for (const [key, value] of Object.entries(query)) {
     if (value !== "") params.set(key, value);
   }
-  return `/titles?${params}`;
+  return `${collection ? `/library/${collection}` : "/titles"}?${params}`;
 }

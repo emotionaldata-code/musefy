@@ -3,6 +3,7 @@ import {
   request,
   titlesPath,
   type CatalogQuery,
+  type Collection,
   type Title,
   type TitlePage,
 } from "./api";
@@ -17,7 +18,7 @@ type CatalogState = {
 };
 
 // The catalog component remounts on filter changes, cancelling the old request.
-export function useCatalog(query: CatalogQuery) {
+export function useCatalog(query: CatalogQuery, collection?: Collection) {
   const [offset, setOffset] = useState(0);
   const [attempt, setAttempt] = useState(0);
   const [state, setState] = useState<CatalogState>({
@@ -28,7 +29,7 @@ export function useCatalog(query: CatalogQuery) {
     done: false,
     error: null,
   });
-  const path = titlesPath(query, offset);
+  const path = titlesPath(query, offset, collection);
 
   useEffect(() => {
     const controller = new AbortController();

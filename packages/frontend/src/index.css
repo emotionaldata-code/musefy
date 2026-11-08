@@ -168,10 +168,14 @@ button:disabled {
   font-size: 0.8125rem;
 }
 .sidebar-bottom {
-  margin-top: auto;
+  margin-top: 0;
   padding: 32px 10px 0;
   font-size: 0.8125rem;
   color: var(--faint);
+}
+.sidebar-library {
+  margin-top: auto;
+  padding-top: 28px;
 }
 .attribution p {
   margin: 0 0 10px;
@@ -309,6 +313,43 @@ h1 {
   font-size: 0.8125rem;
   color: var(--faint);
   margin: 4px 0 0;
+}
+.title-actions-block {
+  margin-top: 10px;
+}
+.title-actions {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+[data-slot="button"].title-action {
+  flex: 1;
+  min-height: 44px;
+  height: auto;
+  padding: 6px;
+  gap: 4px;
+  border-color: var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted-text);
+  font-size: 0.75rem;
+  box-shadow: none;
+}
+[data-slot="button"].title-action[aria-pressed="true"] {
+  color: var(--foreground);
+  background: var(--card);
+  border-color: var(--muted-text);
+}
+.title-actions .title-action:hover {
+  color: var(--foreground);
+  background: var(--card);
+}
+.title-card .title-action-error,
+.title-action-error {
+  color: var(--destructive);
+  font-size: 0.75rem;
+  line-height: 1.4;
+  margin: 6px 0 0;
 }
 .load-status {
   display: flex;

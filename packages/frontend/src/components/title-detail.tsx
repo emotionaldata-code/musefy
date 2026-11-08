@@ -13,6 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { categoryName, type Title } from "@/lib/api";
 import { useResource } from "@/lib/use-resource";
 import { Poster } from "./title-card";
+import { TitleActions } from "./title-actions";
 
 export function TitleDetail({
   id,
@@ -96,6 +97,7 @@ export function TitleDetail({
                         {title.genres.join(" · ")}
                       </p>
                     )}
+                    <TitleActions title={title} />
                   </div>
                 </div>
                 {metadata?.synopsis && (

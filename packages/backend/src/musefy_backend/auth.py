@@ -333,12 +333,18 @@ async def me(user: CurrentUser) -> User:
 
 @router.post("/logout", status_code=204)
 async def logout(request: Request, session: Session, user: CurrentUser) -> Response:
+    require_origin(request)
     config = settings(request)
-    allowed = {config.auth_frontend_url.rstrip("/"), *config.cors_origins}
-    if request.headers.get("origin") not in allowed:
-        raise HTTPException(403, "Invalid request origin")
     await session.execute(delete(AuthSessionRow).where(AuthSessionRow.id == request.state.auth_session_id))
     await session.commit()
     response = Response(status_code=204)
     clear_cookie(response, config)
     return response
+
+
+def require_origin(request: Request) -> None:
+    """Cookie-authenticated writes must originate from the configured frontend."""
+    config = settings(request)
+    allowed = {config.auth_frontend_url.rstrip("/"), *config.cors_origins}
+    if request.headers.get("origin") not in allowed:
+        raise HTTPException(403, "Invalid request origin")

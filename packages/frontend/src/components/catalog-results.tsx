@@ -3,18 +3,22 @@ import { LoaderCircle, X } from "lucide-react";
 import { Button } from "./ui/button";
 import { Skeleton } from "./ui/skeleton";
 import { TitleCard } from "./title-card";
-import type { CatalogQuery } from "@/lib/api";
+import type { CatalogQuery, Collection } from "@/lib/api";
 import { useCatalog } from "@/lib/use-catalog";
 
 export function CatalogResults({
   query,
   reset,
+  collection,
 }: {
   query: CatalogQuery;
   reset: () => void;
+  collection?: Collection;
 }) {
-  const { items, total, loading, done, error, loadMore, retry } =
-    useCatalog(query);
+  const { items, total, loading, done, error, loadMore, retry } = useCatalog(
+    query,
+    collection,
+  );
   const sentinel = useRef<HTMLDivElement>(null);
   const filtered = !!(query.q || query.source || query.year || query.genre);
 
@@ -83,12 +87,18 @@ export function CatalogResults({
           <h2>
             {filtered || query.source_type
               ? "Nessun titolo trovato"
-              : "La biblioteca è ancora vuota"}
+              : collection
+                ? "Il tuo elenco è ancora vuoto"
+                : "La biblioteca è ancora vuota"}
           </h2>
           <p>
             {filtered || query.source_type
               ? "Prova un altro titolo o modifica i filtri."
-              : "Le opere importate compariranno qui."}
+              : collection === "wishlist"
+                ? "Usa Wishlist sulle card per ritrovare qui i titoli da guardare o leggere."
+                : collection === "watched"
+                  ? "Segna i titoli come già visti o letti per ritrovarli qui."
+                  : "Le opere importate compariranno qui."}
           </p>
           {(filtered || query.source_type) && (
             <Button variant="outline" onClick={reset}>
