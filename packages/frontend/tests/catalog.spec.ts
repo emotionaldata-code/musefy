@@ -81,6 +81,7 @@ test("browse continuously, search, details and empty results", async ({
 test("phone category filters, API error and retry", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/?view=catalog");
+  await page.getByRole("button", { name: "Apri menu", exact: true }).click();
   await page.getByRole("button", { name: "Manga 0" }).click();
   await expect(page).toHaveURL(/source_type=manga/);
   await expect(
@@ -328,6 +329,10 @@ for (const width of [1440, 390]) {
       );
       expect(await frame()).toEqual(before);
     }
+    if (width <= 1000)
+      await page
+        .getByRole("button", { name: "Apri menu", exact: true })
+        .click();
     await page.getByRole("button", { name: "Manga 0", exact: true }).click();
     await expect(
       page.getByRole("heading", { name: "Nessun titolo trovato" }),

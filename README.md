@@ -118,11 +118,14 @@ redistribuzione sui dati MAL.
 La prima schermata è **Musefy**, una chat dimostrativa che ripete ogni messaggio.
 I messaggi rimangono nel browser mentre si cambia sezione e si cancellano al reload;
 non sono inviati al backend né salvati nel database. Invio per spedire, Shift+Invio
-per andare a capo. La sidebar è aperta all’avvio e si può chiudere e riaprire dal
-pulsante accanto al titolo, anche su mobile. Il catalogo è accessibile dalle altre
-voci e direttamente con `/?view=catalog`; i link filtrati esistenti restano validi.
+per andare a capo. Su desktop la sidebar è aperta all’avvio e richiudibile.
+Su telefono e tablet (fino a 1000 px) il pulsante accanto al titolo apre un menu
+laterale shadcn, chiuso all’avvio: si richiude scegliendo una sezione, toccando fuori
+o premendo Escape. La chat rispetta le safe area e lo spazio visibile della tastiera.
+Il catalogo è accessibile dalle altre voci e direttamente con `/?view=catalog`; i link filtrati esistenti restano validi.
 Chat e toggle usano `textarea` e `collapsible`, aggiunti con
-`npx shadcn@latest add collapsible textarea --yes`.
+`npx shadcn@latest add collapsible textarea --yes`; menu mobile aggiunto con
+`npx shadcn@latest add sheet --yes`.
 
 Aprire **http://127.0.0.1:5173** dopo `docker compose up --build -d`.
 Ricerca sul titolo, categorie, fonte, anno e genere interrogano FastAPI;
