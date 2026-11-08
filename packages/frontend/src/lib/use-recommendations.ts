@@ -4,6 +4,7 @@ import type { components } from "./api-schema";
 
 export type SearchHit = components["schemas"]["SearchHit"];
 type SearchPage = components["schemas"]["SearchPage"];
+const pageSize = 2;
 type Reply =
   | { status: "loading" }
   | { status: "ready"; items: SearchHit[] }
@@ -12,6 +13,7 @@ export type Exchange = {
   id: string;
   text: string;
   kind: Kind;
+  offset: number;
   reply: Reply;
 };
 
@@ -20,7 +22,13 @@ export function useRecommendations() {
   const [pending, setPending] = useState(false);
   const controller = useRef<AbortController | null>(null);
 
-  useEffect(() => () => controller.current?.abort(), []);
+  useEffect(
+    () => () => {
+      controller.current?.abort();
+      controller.current = null;
+    },
+    [],
+  );
 
   async function load(exchange: Exchange): Promise<void> {
     if (controller.current) return;
@@ -38,8 +46,9 @@ export function useRecommendations() {
     const params = new URLSearchParams({
       q: exchange.text,
       source_type: exchange.kind,
-      limit: "2",
+      limit: String(pageSize),
     });
+    if (exchange.offset) params.set("offset", String(exchange.offset));
     try {
       const page = await request<SearchPage>(
         `/search?${params}`,
@@ -50,17 +59,20 @@ export function useRecommendations() {
     } catch {
       if (!current.signal.aborted) update({ status: "error" });
     } finally {
-      controller.current = null;
-      if (!current.signal.aborted) setPending(false);
+      if (controller.current === current) {
+        controller.current = null;
+        setPending(false);
+      }
     }
   }
 
-  function send(text: string, kind: Kind): boolean {
+  function send(text: string, kind: Kind, offset = 0): boolean {
     if (controller.current || !text.trim()) return false;
     const exchange: Exchange = {
       id: crypto.randomUUID(),
       text: text.trim(),
       kind,
+      offset,
       reply: { status: "loading" },
     };
     setExchanges((items) => [...items, exchange]);
@@ -68,5 +80,21 @@ export function useRecommendations() {
     return true;
   }
 
-  return { exchanges, pending, send, retry: load };
+  const latest = exchanges.at(-1);
+  const hasMore =
+    latest?.reply.status === "ready" && latest.reply.items.length === pageSize;
+
+  function more(): void {
+    if (latest && hasMore)
+      send(latest.text, latest.kind, latest.offset + pageSize);
+  }
+
+  function reset(): void {
+    controller.current?.abort();
+    controller.current = null;
+    setPending(false);
+    setExchanges([]);
+  }
+
+  return { exchanges, pending, hasMore, send, more, reset, retry: load };
 }

@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { ChatReply } from "@/components/chat-reply";
+import { ChatActions } from "@/components/chat-actions";
 import { categoryName, type Kind } from "@/lib/api";
 import { useRecommendations } from "@/lib/use-recommendations";
 
@@ -12,9 +13,19 @@ const formats: Kind[] = ["movie", "tv", "anime", "manga"];
 export function Chat({ active }: { active: boolean }) {
   const [draft, setDraft] = useState("");
   const [kind, setKind] = useState<Kind | null>(null);
-  const { exchanges, pending, send, retry } = useRecommendations();
+  const [editing, setEditing] = useState(true);
+  const { exchanges, pending, hasMore, send, more, reset, retry } =
+    useRecommendations();
   const conversation = useRef<HTMLDivElement>(null);
   const composer = useRef<HTMLTextAreaElement>(null);
+  const firstFormat = useRef<HTMLButtonElement>(null);
+  const loadingMore = pending && (exchanges.at(-1)?.offset ?? 0) > 0;
+
+  useEffect(() => {
+    if (!active || !editing) return;
+    if (kind) composer.current?.focus();
+    else firstFormat.current?.focus();
+  }, [active, editing, kind]);
 
   useEffect(() => {
     if (active && conversation.current) {
@@ -44,15 +55,26 @@ export function Chat({ active }: { active: boolean }) {
 
   function choose(format: Kind): void {
     setKind(format);
-    composer.current?.focus();
   }
 
   function submit(event: FormEvent<HTMLFormElement>): void {
     event.preventDefault();
     if (kind && send(draft, kind)) {
       setDraft("");
-      composer.current?.focus();
+      setEditing(false);
     }
+  }
+
+  function edit(): void {
+    setDraft(exchanges.at(-1)?.text ?? "");
+    setEditing(true);
+  }
+
+  function restart(): void {
+    reset();
+    setDraft("");
+    setKind(null);
+    setEditing(true);
   }
 
   return (
@@ -78,7 +100,9 @@ export function Chat({ active }: { active: boolean }) {
               Cosa vuoi farti consigliare?
             </h2>
             <p className="max-w-sm text-sm leading-relaxed text-muted-foreground">
-              Scegli un formato, poi raccontami la storia che cerchi.
+              {kind
+                ? "Descrivi un tema, una trama o un’atmosfera."
+                : "Scegli un formato per iniziare."}
             </p>
             <div
               role="group"
@@ -88,6 +112,7 @@ export function Chat({ active }: { active: boolean }) {
               {formats.map((format) => (
                 <Button
                   key={format}
+                  ref={format === formats[0] ? firstFormat : undefined}
                   variant={kind === format ? "default" : "secondary"}
                   aria-pressed={kind === format}
                   className="min-h-11 px-5"
@@ -97,11 +122,6 @@ export function Chat({ active }: { active: boolean }) {
                 </Button>
               ))}
             </div>
-            {kind && (
-              <p className="mt-1 text-sm text-muted-foreground">
-                Descrivi un’atmosfera, un tema o una trama.
-              </p>
-            )}
           </div>
         ) : (
           <div className="chat-messages mx-auto w-full max-w-180 space-y-7 px-1 py-5 pr-3 sm:space-y-8 sm:pb-8">
@@ -111,7 +131,9 @@ export function Chat({ active }: { active: boolean }) {
                   <span className="sr-only">
                     Tu, {categoryName(exchange.kind)}:{" "}
                   </span>
-                  <p className="leading-relaxed">{exchange.text}</p>
+                  <p className="leading-relaxed">
+                    {exchange.offset ? "Altri consigli" : exchange.text}
+                  </p>
                 </div>
                 <div className="chat-message chat-message-assistant mt-5 [overflow-wrap:anywhere] sm:mt-6">
                   <span className="chat-speaker mb-3 block text-sm font-semibold">
@@ -128,75 +150,82 @@ export function Chat({ active }: { active: boolean }) {
           </div>
         )}
       </ScrollArea>
-      {exchanges.length > 0 && (
-        <div
-          role="group"
-          aria-label="Formato da consigliare"
-          className="mx-auto grid w-full max-w-180 shrink-0 grid-cols-4 gap-1 pt-2 sm:flex"
-        >
-          {formats.map((format) => (
-            <Button
-              key={format}
-              size="sm"
-              variant={kind === format ? "secondary" : "ghost"}
-              aria-pressed={kind === format}
-              className="min-h-11 px-2! text-xs sm:text-sm"
-              onClick={() => choose(format)}
-            >
-              {categoryName(format)}
-            </Button>
-          ))}
-        </div>
-      )}
-      <form
-        className="chat-composer mx-auto mt-3 flex w-full max-w-180 shrink-0 items-end gap-2 rounded-[1.75rem] bg-card p-2 sm:mt-4 sm:gap-3 sm:p-2.5"
-        aria-label="Invia un messaggio"
-        onSubmit={submit}
-      >
-        <Textarea
-          ref={composer}
-          className="min-w-0 flex-1 resize-none"
-          enterKeyHint="send"
-          aria-label="Messaggio"
-          aria-describedby="chat-hint"
-          placeholder={
-            kind
-              ? "Che storia hai in mente?"
-              : "Scegli un formato per iniziare…"
-          }
-          value={draft}
-          rows={1}
-          maxLength={200}
-          onChange={(event) => setDraft(event.target.value)}
-          onKeyDown={(event) => {
-            if (
-              event.key === "Enter" &&
-              !event.shiftKey &&
-              !event.nativeEvent.isComposing
-            ) {
-              event.preventDefault();
-              event.currentTarget.form?.requestSubmit();
-            }
-          }}
+      {!editing && (
+        <ChatActions
+          pending={pending}
+          hasMore={hasMore || loadingMore}
+          more={more}
+          edit={edit}
+          reset={restart}
         />
-        <Button
-          type="submit"
-          size="icon"
-          className="icon-button"
-          aria-label="Invia messaggio"
-          disabled={!kind || !draft.trim() || pending}
-        >
-          <ArrowUp aria-hidden="true" />
-        </Button>
-      </form>
-      <p
-        id="chat-hint"
-        className="mx-auto mt-2 w-full max-w-180 shrink-0 px-3 text-xs leading-relaxed text-muted-foreground"
-      >
-        {draft.length === 200
-          ? "Limite di 200 caratteri raggiunto."
-          : "Fino a 200 caratteri · Cerca per affinità di trama e temi."}
-      </p>
+      )}
+      {editing && (
+        <>
+          {exchanges.length > 0 && (
+            <div className="mx-auto w-full max-w-180 shrink-0 pt-2">
+              <Button
+                variant="ghost"
+                className="min-h-11"
+                onClick={() => setEditing(false)}
+              >
+                Annulla modifica
+              </Button>
+            </div>
+          )}
+          <form
+            className="chat-composer mx-auto mt-3 flex w-full max-w-180 shrink-0 items-end gap-2 rounded-[1.75rem] bg-card p-2 sm:mt-4 sm:gap-3 sm:p-2.5"
+            aria-label="Invia un messaggio"
+            onSubmit={submit}
+          >
+            <Textarea
+              ref={composer}
+              className="min-w-0 flex-1 resize-none"
+              enterKeyHint="send"
+              aria-label="Messaggio"
+              aria-describedby="chat-hint"
+              placeholder={
+                kind
+                  ? "Che storia hai in mente?"
+                  : "Scegli un formato per iniziare…"
+              }
+              value={draft}
+              disabled={!kind}
+              rows={1}
+              maxLength={200}
+              onChange={(event) => setDraft(event.target.value)}
+              onKeyDown={(event) => {
+                if (
+                  event.key === "Enter" &&
+                  !event.shiftKey &&
+                  !event.nativeEvent.isComposing
+                ) {
+                  event.preventDefault();
+                  event.currentTarget.form?.requestSubmit();
+                }
+              }}
+            />
+            <Button
+              type="submit"
+              size="icon"
+              className="icon-button"
+              aria-label="Invia messaggio"
+              disabled={!kind || !draft.trim() || pending}
+            >
+              <ArrowUp aria-hidden="true" />
+            </Button>
+          </form>
+          <p
+            id="chat-hint"
+            className="mx-auto mt-2 w-full max-w-180 shrink-0 px-3 text-xs leading-relaxed text-muted-foreground"
+          >
+            {draft.length === 200
+              ? "Limite di 200 caratteri raggiunto."
+              : kind
+                ? "Fino a 200 caratteri."
+                : "Scegli un formato per scrivere."}
+          </p>
+        </>
+      )}
     </section>
   );
 }

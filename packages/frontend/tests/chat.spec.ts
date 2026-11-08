@@ -8,28 +8,20 @@ async function mockCatalog(page: Page): Promise<URL[]> {
     const url = new URL(route.request().url());
     if (url.pathname.endsWith("/search")) {
       searches.push(url);
+      const offset = Number(url.searchParams.get("offset") ?? 0);
+      const names = ["Primo", "Secondo", "Terzo", "Quarto"];
       return route.fulfill({
         json: {
-          items: [
-            {
-              title: {
-                ...title,
-                source_type: url.searchParams.get("source_type"),
-                title: "Primo consiglio",
-              },
-              score: 0.91,
+          items: names.slice(offset, offset + 2).map((name, index) => ({
+            title: {
+              ...title,
+              id: offset + index + 1,
+              source_type: url.searchParams.get("source_type"),
+              title: `${name} consiglio`,
             },
-            {
-              title: {
-                ...title,
-                id: 2,
-                source_type: url.searchParams.get("source_type"),
-                title: "Secondo consiglio",
-              },
-              score: 0.82,
-            },
-          ],
-          offset: 0,
+            score: 0.91 - (offset + index) * 0.01,
+          })),
+          offset,
           limit: 2,
         },
       });
@@ -61,6 +53,7 @@ for (const width of [1440, 768, 390]) {
       exact: true,
     });
     await expect(send).toBeDisabled();
+    await expect(input).toBeDisabled();
     await expect(input).toHaveAttribute("maxlength", "200");
     await page.screenshot({ path: `/tmp/musefy-retrieval-${width}-start.png` });
     const formats = page.getByRole("group", { name: "Formato da consigliare" });
@@ -79,9 +72,10 @@ for (const width of [1440, 768, 390]) {
       source_type: "movie",
       limit: "2",
     });
-    await expect(input).toHaveValue("");
+    await expect(input).toHaveCount(0);
     await page.screenshot({
       path: `/tmp/musefy-retrieval-${width}-results.png`,
+      animations: "disabled",
     });
     await results.first().click();
     await expect(
@@ -91,6 +85,54 @@ for (const width of [1440, 768, 390]) {
     ).toBeVisible();
     await page.keyboard.press("Escape");
     await expect(page.getByRole("dialog")).not.toBeVisible();
+    const more = page.getByRole("button", {
+      name: "Altri consigli",
+      exact: true,
+    });
+    const edit = page.getByRole("button", {
+      name: "Modifica descrizione",
+      exact: true,
+    });
+    const restart = page.getByRole("button", {
+      name: "Nuova ricerca",
+      exact: true,
+    });
+    await more.click();
+    await expect(results).toHaveText([
+      /Primo consiglio/,
+      /Secondo consiglio/,
+      /Terzo consiglio/,
+      /Quarto consiglio/,
+    ]);
+    expect(searches.at(-1)?.searchParams.get("offset")).toBe("2");
+    expect(searches.at(-1)?.searchParams.get("q")).toBe(
+      searches[0].searchParams.get("q"),
+    );
+    await more.click();
+    await expect(page.locator(".chat-message-assistant").last()).toContainText(
+      "Non ci sono altri titoli",
+    );
+    expect(searches.at(-1)?.searchParams.get("offset")).toBe("4");
+    await expect(more).toHaveCount(0);
+    await edit.click();
+    await expect(input).toHaveValue(
+      "Un’indagine psicologica in una città inquietante",
+    );
+    await expect(input).toBeFocused();
+    await input.fill("Una storia nello spazio");
+    await input.press("Enter");
+    await expect(
+      page.locator(".chat-exchange").last().getByRole("link"),
+    ).toHaveCount(2);
+    expect(searches.at(-1)?.searchParams.get("offset")).toBeNull();
+    expect(searches.at(-1)?.searchParams.get("q")).toBe(
+      "Una storia nello spazio",
+    );
+    await expect(page.locator(".chat-exchange")).toHaveCount(4);
+    await restart.click();
+    await expect(input).toBeDisabled();
+    await expect(input).toHaveValue("");
+    await expect(page.locator(".chat-exchange")).toHaveCount(0);
     for (const [label, kind] of [
       ["Anime", "anime"],
       ["Manga", "manga"],
@@ -111,8 +153,10 @@ for (const width of [1440, 768, 390]) {
       expect(searches.at(-1)?.searchParams.get("q")).toBe(
         "Prima riga\nSeconda riga",
       );
+      await expect(restart).toBeInViewport();
+      await restart.click();
     }
-    await expect(page.locator(".chat-exchange")).toHaveCount(4);
+    await expect(page.locator(".chat-exchange")).toHaveCount(0);
     expect(
       await page.evaluate(
         () =>
@@ -120,7 +164,7 @@ for (const width of [1440, 768, 390]) {
           document.documentElement.scrollHeight <= innerHeight,
       ),
     ).toBe(true);
-    await expect(send).toBeInViewport();
+    await expect(input).toBeDisabled();
     await page.reload();
     await expect(
       page.getByRole("heading", { name: "Cosa vuoi farti consigliare?" }),
@@ -150,20 +194,17 @@ test("one in-flight search, sanitized error and retry", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "Anime", exact: true }).click();
   const input = page.getByRole("textbox", { name: "Messaggio", exact: true });
-  const send = page.getByRole("button", {
-    name: "Invia messaggio",
-    exact: true,
-  });
   await input.fill("<script>alert('ciao')</script>");
   await input.press("Enter");
   await expect(page.getByRole("status")).toHaveText("Cerco nel catalogo…");
-  await input.fill("Altro messaggio");
-  await expect(send).toBeDisabled();
-  await input.press("Enter");
+  await expect(input).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Modifica descrizione", exact: true }),
+  ).toBeDisabled();
   expect(attempts).toBe(1);
   release();
   await expect(page.getByRole("alert")).toContainText(
-    "La ricerca non è disponibile",
+    "Non riesco a cercare ora",
   );
   await expect(page.locator("body")).not.toContainText(
     "private debug information",
@@ -171,7 +212,7 @@ test("one in-flight search, sanitized error and retry", async ({ page }) => {
   await expect(page.locator(".chat-message-user")).toContainText("<script>");
   await page.getByRole("button", { name: "Riprova la ricerca" }).click();
   await expect(page.locator(".chat-message-assistant")).toContainText(
-    "Non ci sono ancora titoli indicizzati",
+    "Non ho trovato titoli",
   );
   expect(attempts).toBe(2);
   await expect(page.locator(".chat-exchange")).toHaveCount(1);
@@ -265,7 +306,7 @@ for (const viewport of [
         viewport.dispatchEvent(new Event("resize"));
       });
       await expect(
-        page.getByRole("button", { name: "Invia messaggio", exact: true }),
+        page.getByRole("button", { name: "Nuova ricerca", exact: true }),
       ).toBeInViewport();
       expect(
         await page.evaluate(
@@ -307,4 +348,97 @@ test("sidebar adapts without losing recommendations", async ({ page }) => {
   await expect(
     page.locator(".chat-message-assistant").getByRole("link"),
   ).toHaveCount(2);
+});
+
+test("a new search cancels pending results without reviving the old conversation", async ({
+  page,
+}) => {
+  await mockCatalog(page);
+  let release!: () => void;
+  const waiting = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let calls = 0;
+  await page.route("**/api/search?**", async (route) => {
+    calls += 1;
+    if (calls === 1) await waiting;
+    return route.fulfill({ json: { items: [], offset: 0, limit: 2 } });
+  });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Film", exact: true }).click();
+  const input = page.getByRole("textbox", { name: "Messaggio", exact: true });
+  await input.fill("Prima ricerca");
+  await input.press("Enter");
+  await expect(page.getByRole("status")).toBeVisible();
+  await page
+    .getByRole("button", { name: "Nuova ricerca", exact: true })
+    .click();
+  await expect(input).toBeDisabled();
+  await expect(page.locator(".chat-exchange")).toHaveCount(0);
+  await page.getByRole("button", { name: "Anime", exact: true }).click();
+  await input.fill("Seconda ricerca");
+  await input.press("Enter");
+  await expect(page.locator(".chat-message-assistant")).toContainText(
+    "Non ho trovato titoli",
+  );
+  release();
+  await expect(page.locator(".chat-exchange")).toHaveCount(1);
+  await expect(page.locator(".chat-message-user")).toContainText(
+    "Seconda ricerca",
+  );
+  await expect(
+    page.getByRole("button", { name: "Modifica descrizione", exact: true }),
+  ).toBeEnabled();
+});
+
+test("retrying another page preserves the query and offset", async ({
+  page,
+}) => {
+  const searches = await mockCatalog(page);
+  let attempts = 0;
+  await page.route("**/api/search?**", (route) => {
+    const url = new URL(route.request().url());
+    if (url.searchParams.get("offset") !== "2") return route.fallback();
+    searches.push(url);
+    attempts += 1;
+    return route.fulfill({
+      status: attempts === 1 ? 503 : 200,
+      json: { items: [], offset: 2, limit: 2 },
+    });
+  });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Manga", exact: true }).click();
+  const input = page.getByRole("textbox", { name: "Messaggio", exact: true });
+  await input.fill("Un viaggio avventuroso");
+  await input.press("Enter");
+  await page
+    .getByRole("button", { name: "Altri consigli", exact: true })
+    .click();
+  await expect(page.getByRole("alert")).toBeVisible();
+  await page
+    .getByRole("button", { name: "Riprova la ricerca", exact: true })
+    .click();
+  await expect(page.locator(".chat-message-assistant").last()).toContainText(
+    "Non ci sono altri titoli",
+  );
+  expect(searches.map((url) => url.searchParams.get("offset"))).toEqual([
+    null,
+    "2",
+    "2",
+  ]);
+  expect(
+    searches.every(
+      (url) => url.searchParams.get("q") === "Un viaggio avventuroso",
+    ),
+  ).toBe(true);
+  await expect(page.locator(".chat-exchange")).toHaveCount(2);
+  await page
+    .getByRole("button", { name: "Modifica descrizione", exact: true })
+    .click();
+  await input.fill("Testo non inviato");
+  await page
+    .getByRole("button", { name: "Annulla modifica", exact: true })
+    .click();
+  await expect(input).toHaveCount(0);
+  expect(searches).toHaveLength(3);
 });

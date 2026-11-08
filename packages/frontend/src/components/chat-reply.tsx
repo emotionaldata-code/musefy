@@ -62,7 +62,7 @@ export function ChatReply({
     return (
       <div className="space-y-3">
         <p role="alert" className="text-sm leading-relaxed">
-          La ricerca non è disponibile al momento. Riprova tra poco.
+          Non riesco a cercare ora. Riprova tra poco.
         </p>
         <Button
           variant="secondary"
@@ -76,16 +76,19 @@ export function ChatReply({
   if (!reply.items.length)
     return (
       <p className="text-sm leading-relaxed">
-        Non ci sono ancora titoli indicizzati per questo formato. Prova un altro
-        formato o ripassa più tardi.
+        {exchange.offset
+          ? "Non ci sono altri titoli per questa ricerca."
+          : "Non ho trovato titoli per questa ricerca."}
       </p>
     );
   return (
     <div className="space-y-3">
       <p className="text-sm leading-relaxed">
         {reply.items.length === 1
-          ? "Il titolo più vicino alla tua descrizione:"
-          : "I due titoli più vicini alla tua descrizione:"}
+          ? "Un titolo da provare:"
+          : exchange.offset
+            ? "Altri titoli da provare:"
+            : "Due titoli da provare:"}
       </p>
       <div className="space-y-3" aria-label="Titoli consigliati">
         {reply.items.map((hit) => (
