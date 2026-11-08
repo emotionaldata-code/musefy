@@ -23,8 +23,11 @@ async def follow(
     if interval < 1:
         raise ValueError("interval must be positive")
     while True:
-        yield await populate(sessions, embedder, batch_size=batch_size)
-        await asyncio.sleep(interval)
+        # Revisit earlier IDs even while workers continuously append new titles.
+        stats = await populate(sessions, embedder, batch_size=batch_size, max_items=batch_size)
+        yield stats
+        if stats.processed < batch_size:
+            await asyncio.sleep(interval)
 
 
 async def populate(

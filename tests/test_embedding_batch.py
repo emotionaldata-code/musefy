@@ -96,6 +96,37 @@ async def test_watcher_revisits_new_and_changed_synopses(
         await watcher.aclose()
 
 
+async def test_watcher_bounds_passes_and_drains_backlog_without_waiting(
+    db: tuple[AsyncEngine, Sessions], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _, sessions = db
+    async with sessions.begin() as session:
+        for source_id in range(1, 4):
+            await titles.upsert(session, example(source_id=source_id))
+    waits: list[float] = []
+
+    async def sleep(seconds: float) -> None:
+        waits.append(seconds)
+
+    monkeypatch.setattr("musefy_cli.embeddings.asyncio.sleep", sleep)
+    embedder = Embedder(factory=lambda: lambda texts: [vector() for _ in texts])
+    watcher = follow(sessions, embedder, batch_size=2)
+    try:
+        assert (await anext(watcher)).embedded == 2
+        async with sessions.begin() as session:
+            changed = example(source_id=1)
+            changed.metadata.synopsis = "Earlier ID updated during ingestion"
+            await titles.upsert(session, changed)
+        # Revisit the updated first ID before continuing with the newest ID.
+        assert (await anext(watcher)).embedded == 2
+        assert waits == []
+        assert (await anext(watcher)).processed == 0
+        assert (await anext(watcher)).processed == 0
+        assert waits == [60]
+    finally:
+        await watcher.aclose()
+
+
 async def test_large_database_batch_uses_bounded_inference_and_one_commit(
     db: tuple[AsyncEngine, Sessions],
 ) -> None:

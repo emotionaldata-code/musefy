@@ -394,7 +394,9 @@ L’IP Docker può cambiare a ogni deploy: rilevarlo nuovamente con `docker insp
 Nessuna porta PostgreSQL pubblica e nessun endpoint HTTP per generare o caricare embeddings.
 
 Per mantenere l’indice aggiornato dal PC, `embed --watch` riparte dagli ID iniziali
-a ogni passata, salta hash/profili correnti e attende 60 secondi dopo il completamento.
+a ogni batch, salta hash/profili correnti e attende 60 secondi quando il batch non
+è pieno. Se c’è arretrato continua subito: gli aggiornamenti agli ID precedenti
+non restano in attesa della fine di un catalogo che continua a crescere.
 Non accetta `--force` o `--max-items`. Un errore interrompe il processo senza perdere
 i batch già committati; il servizio locale lo riavvia ricreando il tunnel e rilevando
 l’IP corrente del container PostgreSQL.
