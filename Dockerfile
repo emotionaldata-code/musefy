@@ -16,4 +16,4 @@ RUN --mount=type=cache,target=/opt/models/xet musefy embedding-model
 ENV HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1
 RUN useradd --create-home app
 USER app
-CMD ["uvicorn", "musefy_backend.app:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "musefy_backend.app:app", "--host", "0.0.0.0", "--port", "8000", "--no-access-log"]

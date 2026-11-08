@@ -1,13 +1,14 @@
 from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from musefy_core.db import embeddings
 from musefy_core.schemas import Filters, Model, StoredTitle
 from pydantic import Field, StringConstraints
 
+from musefy_backend.auth import current_user
 from musefy_backend.dependencies import Embedding, Session
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(current_user)])
 type SearchText = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)]
 
 

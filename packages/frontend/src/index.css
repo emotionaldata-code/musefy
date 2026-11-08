@@ -664,3 +664,146 @@ h1 {
     max-height: 100dvh;
   }
 }
+
+.login-page {
+  min-height: 100svh;
+  display: grid;
+  place-items: center;
+  padding: 80px 24px;
+}
+.login-theme {
+  position: absolute;
+  top: max(20px, env(safe-area-inset-top));
+  right: max(24px, env(safe-area-inset-right));
+}
+.login-content {
+  width: min(100%, 360px);
+}
+.login-brand {
+  margin-bottom: 44px;
+}
+.login-content h1 {
+  font-size: 1.5rem;
+  line-height: 1.2;
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  margin: 0 0 16px;
+}
+.login-content > p {
+  margin: 0 0 28px;
+  color: var(--muted-text);
+  font-size: 1rem;
+}
+.login-button {
+  width: 100%;
+  min-height: 44px;
+  gap: 12px;
+  background: #fff;
+  color: #1f1f1f;
+  border-color: #747775;
+  border-radius: 4px;
+  font-family: Arial, sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+}
+.login-button:hover {
+  background: #f2f2f2;
+  color: #1f1f1f;
+}
+.login-button .google-mark {
+  width: 18px;
+  height: 18px;
+}
+.login-content .login-note {
+  font-size: 0.8125rem;
+  margin: 20px 0 0;
+  line-height: 1.6;
+}
+.login-content .login-error,
+.login-feedback p {
+  font-size: 0.875rem;
+}
+.login-status {
+  color: var(--muted-text);
+  font-size: 0.875rem;
+}
+.account-trigger {
+  height: 40px;
+  padding: 4px 8px;
+  gap: 8px;
+  max-width: 250px;
+}
+.account-avatar {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--raised);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  font-size: 0.75rem;
+}
+.account-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.account-email {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 0.8125rem;
+}
+.account-menu {
+  min-width: 220px;
+  max-width: min(360px, calc(100vw - 32px));
+  padding: 6px;
+  background: var(--card);
+  color: var(--foreground);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 6px 20px #0002;
+  z-index: 70;
+}
+.account-label {
+  display: grid;
+  gap: 2px;
+  padding: 8px;
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}
+.account-menu-email {
+  color: var(--muted-text);
+  font-size: 0.8125rem;
+}
+.account-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 8px;
+  min-height: 44px;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  cursor: pointer;
+  outline: none;
+}
+.account-menu-item[data-highlighted] {
+  background: var(--raised);
+}
+.account-menu-item[data-disabled] {
+  opacity: 0.5;
+  cursor: default;
+}
+.account-error {
+  margin: 8px;
+  font-size: 0.8125rem;
+}
+@media (max-width: 1000px) {
+  .account-email {
+    display: none;
+  }
+  .account-trigger {
+    width: 40px;
+    padding: 4px;
+  }
+}

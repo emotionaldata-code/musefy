@@ -14,3 +14,11 @@ class Settings(BaseSettings):
     http_timeout: float = Field(default=30, gt=0)
     http_retries: int = Field(default=3, ge=0, le=8)
     cors_origins: list[str] = Field(default_factory=list)
+
+    google_client_id: str | None = None
+    google_client_secret: SecretStr | None = None
+    google_redirect_uri: str = "http://127.0.0.1:8000/auth/callback"
+    auth_frontend_url: str = "http://127.0.0.1:5173"
+    auth_jwt_secret: SecretStr | None = None
+    auth_cookie_secure: bool = False
+    auth_session_ttl_seconds: int = Field(default=604800, ge=60, le=2592000)

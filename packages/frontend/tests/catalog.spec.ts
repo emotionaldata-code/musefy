@@ -1,11 +1,14 @@
 import { expect, test } from "@playwright/test";
+import { account } from "./account";
 import fixture from "./title.json" with { type: "json" };
 
 // Mock every API request; tests never contact metadata providers.
 test.beforeEach(async ({ page }) => {
   await page.route("**/api/**", async (route) => {
     const url = new URL(route.request().url());
-    if (url.pathname.endsWith("/facets")) {
+    if (url.pathname.endsWith("/auth/me")) {
+      await route.fulfill({ json: account });
+    } else if (url.pathname.endsWith("/facets")) {
       await route.fulfill({
         json: { counts: { movie: 31 }, years: [2020], genres: ["Drama"] },
       });

@@ -24,14 +24,33 @@ export const categories: { value: Kind | ""; label: string }[] = [
 export const categoryName = (kind: Kind): string =>
   categories.find((item) => item.value === kind)?.label ?? kind;
 export const pageSize = 15;
-export const docsURL = `${import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000"}/docs`;
+export const apiBaseURL = (import.meta.env.VITE_API_BASE_URL ?? "/api").replace(
+  /\/$/,
+  "",
+);
+export const docsURL = `${apiBaseURL}/docs`;
+export const sessionExpiredEvent = "musefy:session-expired";
+
+export function apiFetch(
+  path: string,
+  options: RequestInit = {},
+): Promise<Response> {
+  return fetch(`${apiBaseURL}${path}`, {
+    ...options,
+    credentials: "include",
+    cache: "no-store",
+  });
+}
 
 export async function request<T>(
   path: string,
   signal: AbortSignal,
 ): Promise<T> {
-  const baseURL = import.meta.env.VITE_API_BASE_URL ?? "/api";
-  const response = await fetch(`${baseURL}${path}`, { signal });
+  const response = await apiFetch(path, { signal });
+  if (response.status === 401) {
+    window.dispatchEvent(new Event(sessionExpiredEvent));
+    throw new Error("La sessione è scaduta. Accedi di nuovo.");
+  }
   if (!response.ok)
     throw new Error(
       response.status === 404

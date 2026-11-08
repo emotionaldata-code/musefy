@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { account } from "./account";
 
 for (const width of [1440, 390]) {
   test(`chat echoes messages and sidebar toggles at ${width}px`, async ({
@@ -7,9 +8,11 @@ for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 844 });
     await page.route("**/api/**", (route) =>
       route.fulfill({
-        json: route.request().url().includes("/facets")
-          ? { counts: {}, years: [], genres: [] }
-          : { items: [], total: 0, offset: 0, limit: 15 },
+        json: route.request().url().includes("/auth/me")
+          ? account
+          : route.request().url().includes("/facets")
+            ? { counts: {}, years: [], genres: [] }
+            : { items: [], total: 0, offset: 0, limit: 15 },
       }),
     );
     await page.goto("/");
@@ -162,7 +165,11 @@ for (const viewport of [
     const page = await context.newPage();
     try {
       await page.route("**/api/**", (route) =>
-        route.fulfill({ json: { counts: {}, years: [], genres: [] } }),
+        route.fulfill({
+          json: route.request().url().includes("/auth/me")
+            ? account
+            : { counts: {}, years: [], genres: [] },
+        }),
       );
       await page.goto("/");
       const menu = page.getByRole("button", { name: "Apri menu", exact: true });
@@ -255,7 +262,11 @@ test("sidebar adapts across the mobile breakpoint without losing chat", async ({
   page,
 }) => {
   await page.route("**/api/**", (route) =>
-    route.fulfill({ json: { counts: {}, years: [], genres: [] } }),
+    route.fulfill({
+      json: route.request().url().includes("/auth/me")
+        ? account
+        : { counts: {}, years: [], genres: [] },
+    }),
   );
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/");

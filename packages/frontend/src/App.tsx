@@ -18,6 +18,9 @@ import { Button } from "@/components/ui/button";
 import { CatalogToolbar } from "@/components/catalog-toolbar";
 import { CatalogResults } from "@/components/catalog-results";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { AccountMenu } from "@/components/account-menu";
+import { Login } from "@/components/login";
+import { useAuth } from "@/lib/use-auth";
 import { TitleDetail } from "@/components/title-detail";
 import {
   categories,
@@ -28,6 +31,7 @@ import {
 import { useResource } from "@/lib/use-resource";
 
 const initialParams = new URLSearchParams(window.location.search);
+initialParams.delete("auth_error");
 const initialQuery: CatalogQuery = {
   q: initialParams.get("q") ?? "",
   source: initialParams.get("source") ?? "",
@@ -41,6 +45,17 @@ function selectedId(): number | null {
 }
 
 export default function App() {
+  const auth = useAuth();
+  if (auth.status !== "authenticated")
+    return <Login status={auth.status} retry={auth.retry} />;
+  return <AuthenticatedApp auth={auth} />;
+}
+
+function AuthenticatedApp({
+  auth,
+}: {
+  auth: ReturnType<typeof useAuth> & { status: "authenticated" };
+}) {
   const [view, setView] = useState<"chat" | "catalog">(
     initialParams.size || window.location.hash ? "catalog" : "chat",
   );
@@ -205,6 +220,12 @@ export default function App() {
                   </Button>
                 )}
                 <ThemeToggle />
+                <AccountMenu
+                  user={auth.user}
+                  logout={auth.logout}
+                  loggingOut={auth.loggingOut}
+                  logoutError={auth.logoutError}
+                />
               </div>
             </div>
             <Chat active={view === "chat"} />

@@ -59,6 +59,13 @@ services:
     environment:
       <<: *database
       CORS_ORIGINS: '["https://musefy.edia-company.com"]'
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-https://api-musefy.edia-company.com/auth/callback}
+      AUTH_FRONTEND_URL: ${AUTH_FRONTEND_URL:-https://musefy.edia-company.com}
+      AUTH_JWT_SECRET: ${AUTH_JWT_SECRET:?Set AUTH_JWT_SECRET}
+      AUTH_COOKIE_SECURE: 'true'
+      AUTH_SESSION_TTL_SECONDS: ${AUTH_SESSION_TTL_SECONDS:-604800}
     networks:
       database:
       default:

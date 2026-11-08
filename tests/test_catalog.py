@@ -1,13 +1,14 @@
 from datetime import UTC, datetime
 
 import httpx
-from musefy_backend.app import create_app
 from musefy_core.db import titles
 from musefy_core.db.models import TitleRow
 from musefy_core.db.session import Sessions, source_lock
 from musefy_core.schemas import Kind, Metadata, Rating, Source, Title
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncEngine
+
+from tests.auth_support import create_app
 
 
 def example(source: Source = Source.TMDB, kind: Kind = Kind.MOVIE, source_id: int = 1) -> Title:

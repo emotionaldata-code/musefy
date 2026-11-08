@@ -1,13 +1,13 @@
 from dataclasses import dataclass, field
 
 import httpx
-from musefy_backend.app import create_app
 from musefy_core.db import embeddings, titles
 from musefy_core.db.session import Sessions
 from musefy_core.embeddings import DIMENSIONS
 from musefy_core.schemas import Kind, Source
 from sqlalchemy.ext.asyncio import AsyncEngine
 
+from tests.auth_support import create_app
 from tests.test_catalog import example
 
 

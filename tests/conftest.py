@@ -46,7 +46,9 @@ async def db(migrated_database: str) -> AsyncIterator[tuple[AsyncEngine, Session
     engine, sessions = database(Settings(database_url=SecretStr(migrated_database)))
     async with engine.begin() as connection:
         await connection.execute(
-            text("TRUNCATE ingestion_items, checkpoints, titles RESTART IDENTITY CASCADE")
+            text(
+                "TRUNCATE auth_sessions, users, ingestion_items, checkpoints, titles RESTART IDENTITY CASCADE"
+            )
         )
     try:
         yield engine, sessions

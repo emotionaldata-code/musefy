@@ -1,17 +1,19 @@
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from musefy_core.db import titles
 from musefy_core.schemas import CatalogFacets, Filters, StoredTitle, TitlePage
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
+from musefy_backend.auth import current_user
 from musefy_backend.dependencies import Session
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(current_user)])
+health_router = APIRouter()
 
 
-@router.get("/health")
+@health_router.get("/health")
 async def health(session: Session) -> dict[str, Literal["ok"]]:
     try:
         await session.execute(text("SELECT 1"))

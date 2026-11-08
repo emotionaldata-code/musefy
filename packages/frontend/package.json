@@ -8,7 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "api:types": "openapi-typescript http://127.0.0.1:8000/openapi.json --properties-required-by-default -o src/lib/api-schema.d.ts",
+    "api:types": "uv run --project ../.. python -c 'import json; from musefy_backend.app import app; print(json.dumps(app.openapi()))' | openapi-typescript --properties-required-by-default -o src/lib/api-schema.d.ts",
     "test": "playwright test"
   },
   "dependencies": {

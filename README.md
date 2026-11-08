@@ -2,7 +2,7 @@
 
 Catalogo asincrono: Python 3.13+, TMDB (film/TV), schema Jikan v4 (anime e manga),
 PostgreSQL, CLI, API FastAPI di sola lettura e frontend React/TypeScript Vite + shadcn.
-Nessuna autenticazione.
+Accesso con Google SSO, account provisionati al primo login e sessioni JWT in cookie HttpOnly.
 Scaffold creato con `uv init` (workspace) e `alembic init -t async`.
 
 ## Struttura
@@ -22,6 +22,7 @@ SQLAlchemy 2 con asyncpg. Nessuna coda esterna o richiesta alle fonti nelle rout
 ```bash
 cp .env.example .env
 # Modificare .env: password PostgreSQL e TMDB_READ_ACCESS_TOKEN.
+# Configurare anche Google OAuth e AUTH_JWT_SECRET come descritto sotto.
 docker compose up --build -d
 curl http://127.0.0.1:8000/health
 ```
@@ -114,6 +115,56 @@ Nessun fallback nascosto tra provider. Restano i limiti prudenti 1,1 s e 60/min.
 Tenrai è in beta: disponibilità e dati possono variare. Non fornisce diritti di
 redistribuzione sui dati MAL.
 
+## Accesso Google
+
+Il browser avvia `GET /auth/google`; FastAPI gestisce redirect e callback Google,
+scambia il codice con PKCE e verifica firma RS256, issuer, audience, scadenza, nonce
+ed email verificata. Sono richiesti solo `openid email profile`. Il primo accesso
+crea un account con Google `sub`, email, nome, avatar e timestamp. L'identità è il
+`sub`, non l'email: un cambio email aggiorna lo stesso account senza unirlo ad altri.
+Non vengono conservati access token o refresh token Google.
+L'immagine API disattiva gli access log Uvicorn per evitare di registrare il codice
+OAuth temporaneo nella query della callback; gli errori applicativi restano nei log.
+
+Creare un client OAuth **Applicazione web** in Google Cloud. Per una beta scegliere
+pubblico **Esterno**, con i soli scope di identità. Configurare gli URI esatti:
+
+- locale: `http://127.0.0.1:8000/auth/callback`;
+- produzione: `https://api-musefy.edia-company.com/auth/callback`.
+
+Usare preferibilmente progetti/client distinti per sviluppo e produzione. Impostare
+`GOOGLE_CLIENT_ID` e `GOOGLE_CLIENT_SECRET` solo nel `.env` backend/Compose; non
+aggiungere variabili `VITE_` con segreti. Il frontend non richiede credenziali OAuth.
+Generare `AUTH_JWT_SECRET` diverso per ciascun ambiente con
+`python3 -c 'import secrets; print(secrets.token_urlsafe(48))'` e proteggerlo come
+le credenziali del database. `.env.example` contiene tutti i nomi delle variabili.
+
+Locale: `AUTH_FRONTEND_URL=http://127.0.0.1:5173`,
+`GOOGLE_REDIRECT_URI=http://127.0.0.1:8000/auth/callback`,
+`AUTH_COOKIE_SECURE=false`. Aprire il frontend con **127.0.0.1**, coerentemente
+con il callback: non alternare `localhost` e `127.0.0.1` nella stessa sessione.
+Produzione: `AUTH_FRONTEND_URL=https://musefy.edia-company.com`,
+`GOOGLE_REDIRECT_URI=https://api-musefy.edia-company.com/auth/callback`;
+Compose impone `AUTH_COOKIE_SECURE=true`. Salvare i segreti anche nell'ambiente
+Dokploy, sorgente del `.env` generato sulla VM a ogni deploy.
+
+La sessione dura `AUTH_SESSION_TTL_SECONDS` (default 7 giorni). Il JWT rimane in un
+cookie host-only HttpOnly, SameSite=Lax, Secure e con prefisso `__Host-` in produzione.
+Non compare in URL, risposte JSON o localStorage. Ogni richiesta verifica sia il JWT
+sia l'esistenza di sessione e account nel database. `POST /auth/logout` richiede
+l'Origin del frontend e revoca la sessione nel DB. Cambiare la chiave JWT invalida
+le sessioni esistenti. Le risposte API non vengono memorizzate in cache.
+
+`GET /auth/me` restituisce `id`, `email`, `name`, `picture`. Catalogo, ricerca, docs
+e OpenAPI richiedono un account autenticato. Restano pubblici solo avvio/callback
+del login e `GET /health`, necessario al monitoraggio. Il frontend controlla la
+sessione prima di caricare chat o catalogo, mostra avatar/email e permette di uscire.
+Credenziali OAuth assenti: il login restituisce 503; non esiste un accesso anonimo
+di ripiego. Applicare `alembic upgrade head` prima di avviare la nuova API.
+
+Riferimenti: [Google OpenID Connect](https://developers.google.com/identity/openid-connect/openid-connect),
+[OAuth per applicazioni web](https://developers.google.com/identity/protocols/oauth2/web-server).
+
 ## Frontend
 
 La prima schermata è **Musefy**, una chat dimostrativa che ripete ogni messaggio.
@@ -161,7 +212,7 @@ npm ci
 npm run dev
 npm run build
 npm run lint
-npm run api:types # rigenera i tipi dall'OpenAPI locale
+npm run api:types # genera OpenAPI dal codice Python, senza sessione HTTP né DB
 npm test # API simulate; richiede Google Chrome installato
 npm test -- --headed # include verifica layout con scrollbar classiche; richiede un display
 ```
@@ -217,9 +268,11 @@ condiviso con ingestion. Nessuna modalità aggira i limiti della fonte.
 
 ## API
 
+Esempi per una sessione autenticata (cookie in `cookies.txt`, da proteggere e non committare):
+
 ```bash
-curl 'http://127.0.0.1:8000/titles?source=tmdb&source_type=movie&year=2020&genre=Drama&q=storia&limit=20&offset=0'
-curl http://127.0.0.1:8000/titles/1
+curl -b cookies.txt 'http://127.0.0.1:8000/titles?source=tmdb&source_type=movie&year=2020&genre=Drama&q=storia&limit=20&offset=0'
+curl -b cookies.txt http://127.0.0.1:8000/titles/1
 ```
 
 `GET /health` verifica PostgreSQL (503 se indisponibile). `GET /titles` restituisce
@@ -253,7 +306,7 @@ uv run musefy embedding-model # scarica e verifica una volta il modello fissato
 uv run musefy embed --batch-size 32 --threads 2
 uv run musefy embed --max-items 100 --batch-size 16
 uv run musefy embed --force --batch-size 32
-curl --get 'http://127.0.0.1:8000/search' \
+curl -b cookies.txt --get 'http://127.0.0.1:8000/search' \
   --data-urlencode 'q=indagine psicologica con misteri e colpi di scena' \
   --data-urlencode 'source_type=anime' --data-urlencode 'limit=10'
 ```
@@ -289,13 +342,15 @@ uv run musefy embed --batch-size 32 --threads 8
 ```
 
 L’IP Docker può cambiare a ogni deploy: rilevarlo nuovamente con `docker inspect`.
-Nessuna porta PostgreSQL pubblica e nessun endpoint HTTP di scrittura.
+Nessuna porta PostgreSQL pubblica e nessun endpoint HTTP per generare o caricare embeddings.
 
 ## Ripresa, aggiornamenti e limiti
 
-Quattro tabelle, inclusa `title_embeddings` descritta sopra: `titles` con identità/filtri
+Il catalogo usa quattro tabelle, inclusa `title_embeddings` descritta sopra: `titles` con identità/filtri
 e metadati JSONB validati da Pydantic;
 `ingestion_items` con ID scoperti e passaggi parziali; `checkpoints` con cursori/versioni.
+Gli account e le sessioni aggiungono le tabelle `users` e `auth_sessions`.
+
 ID e checkpoint sono salvati nella stessa transazione prima dei dettagli;
 upsert della scheda e completamento sono anch'essi atomici. Il vincolo univoco è
 `(source, source_type, source_id)`: movie e TV TMDB rimangono distinti.
@@ -343,7 +398,7 @@ upsert della scheda e completamento sono anch'essi atomici. Il vincolo univoco �
 uv sync --all-packages --frozen
 # Con il PostgreSQL Compose già pronto, .env contiene la URL locale corretta:
 uv run alembic upgrade head
-uv run uvicorn musefy_backend.app:app --reload
+uv run uvicorn musefy_backend.app:app --reload --no-access-log
 uv run musefy list --limit 10
 uv run mypy
 uv run ruff check packages tests migrations

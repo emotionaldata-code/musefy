@@ -18,6 +18,7 @@ export function ThemeToggle() {
       document.documentElement.classList.toggle("dark", media.matches);
       setDark(media.matches);
     }
+    followSystem();
     media.addEventListener("change", followSystem);
     return () => media.removeEventListener("change", followSystem);
   }, []);

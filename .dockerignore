@@ -13,6 +13,9 @@ dist
 .coverage
 *.pem
 *.key
+client_secret*.json
+credentials*.json
+service-account*.json
 
 node_modules
 **/node_modules

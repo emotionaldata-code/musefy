@@ -4,362 +4,616 @@
  */
 
 export interface paths {
-  "/health": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Health */
+        get: operations["health_health_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** Health */
-    get: operations["health_health_get"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/titles": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/auth/google": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Google Login */
+        get: operations["google_login_auth_google_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** List Titles */
-    get: operations["list_titles_titles_get"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/titles/facets": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/auth/callback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Google Callback */
+        get: operations["google_callback_auth_callback_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** Catalog Facets */
-    get: operations["catalog_facets_titles_facets_get"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/titles/{title_id}": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/auth/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Me */
+        get: operations["me_auth_me_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** Get Title */
-    get: operations["get_title_titles__title_id__get"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
+    "/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Logout */
+        post: operations["logout_auth_logout_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/titles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Titles */
+        get: operations["list_titles_titles_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/titles/facets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Catalog Facets */
+        get: operations["catalog_facets_titles_facets_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/titles/{title_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Title */
+        get: operations["get_title_titles__title_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Search */
+        get: operations["search_search_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
-  schemas: {
-    /** CatalogFacets */
-    CatalogFacets: {
-      /** Counts */
-      counts: {
-        [key: string]: number;
-      };
-      /** Years */
-      years: number[];
-      /** Genres */
-      genres: string[];
+    schemas: {
+        /** CatalogFacets */
+        CatalogFacets: {
+            /** Counts */
+            counts: {
+                [key: string]: number;
+            };
+            /** Years */
+            years: number[];
+            /** Genres */
+            genres: string[];
+        };
+        /** Credit */
+        Credit: {
+            /** Name */
+            name: string;
+            /** Source Id */
+            source_id?: number | null;
+            /** Role */
+            role?: string | null;
+            /** Department */
+            department?: string | null;
+            /** Character */
+            character?: string | null;
+            /** Language */
+            language?: string | null;
+            /** Url */
+            url?: string | null;
+        };
+        /** ExternalID */
+        ExternalID: {
+            /** Namespace */
+            namespace: string;
+            /** Value */
+            value: string;
+        };
+        /** HTTPValidationError */
+        HTTPValidationError: {
+            /** Detail */
+            detail: components["schemas"]["ValidationError"][];
+        };
+        /**
+         * Kind
+         * @enum {string}
+         */
+        Kind: "movie" | "tv" | "anime" | "manga";
+        /** Metadata */
+        Metadata: {
+            /** Api Base Url */
+            api_base_url: string | null;
+            /** Image Url */
+            image_url: string | null;
+            /** Original Title */
+            original_title: string | null;
+            /** Alternative Titles */
+            alternative_titles: string[];
+            /** Format */
+            format: string | null;
+            /** Start Date */
+            start_date: string | null;
+            /** End Date */
+            end_date: string | null;
+            /** Original Language */
+            original_language: string | null;
+            /** Synopsis */
+            synopsis: string | null;
+            /** Synopsis Language */
+            synopsis_language: string | null;
+            /** Keywords */
+            keywords: string[];
+            /** Themes */
+            themes: string[];
+            /** Staff */
+            staff: components["schemas"]["Credit"][];
+            /** Cast */
+            cast: components["schemas"]["Credit"][];
+            /** Studios */
+            studios: string[];
+            /** Ratings */
+            ratings: components["schemas"]["Rating"][];
+            /** Relations */
+            relations: components["schemas"]["Relation"][];
+            /** External Ids */
+            external_ids: components["schemas"]["ExternalID"][];
+            /** Endpoints */
+            endpoints: string[];
+        };
+        /** Rating */
+        Rating: {
+            /** Source */
+            source: string;
+            /** Value */
+            value: number;
+            /**
+             * Scale
+             * @default 10
+             */
+            scale: number;
+            /** Votes */
+            votes?: number | null;
+        };
+        /** Relation */
+        Relation: {
+            /** Relation */
+            relation: string;
+            /** Source */
+            source: string;
+            /** Source Id */
+            source_id: string;
+            /** Source Type */
+            source_type?: string | null;
+            /** Title */
+            title?: string | null;
+            /** Url */
+            url?: string | null;
+        };
+        /** SearchHit */
+        SearchHit: {
+            title: components["schemas"]["StoredTitle"];
+            /**
+             * Score
+             * @description Cosine similarity; not a probability or a predicted rating
+             */
+            score: number;
+        };
+        /** SearchPage */
+        SearchPage: {
+            /** Items */
+            items: components["schemas"]["SearchHit"][];
+            /** Offset */
+            offset: number;
+            /** Limit */
+            limit: number;
+        };
+        SearchText: string;
+        /**
+         * Source
+         * @enum {string}
+         */
+        Source: "tmdb" | "jikan";
+        /** StoredTitle */
+        StoredTitle: {
+            source: components["schemas"]["Source"];
+            source_type: components["schemas"]["Kind"];
+            /** Source Id */
+            source_id: number;
+            /** Title */
+            title: string;
+            /** Url */
+            url: string;
+            /** Year */
+            year?: number | null;
+            /** Genres */
+            genres?: string[];
+            /**
+             * Fetched At
+             * Format: date-time
+             */
+            fetched_at: string;
+            metadata: components["schemas"]["Metadata"];
+            /** Id */
+            id: number;
+        };
+        /** TitlePage */
+        TitlePage: {
+            /** Items */
+            items: components["schemas"]["StoredTitle"][];
+            /** Total */
+            total: number;
+            /** Offset */
+            offset: number;
+            /** Limit */
+            limit: number;
+        };
+        /** User */
+        User: {
+            /** Id */
+            id: number;
+            /** Email */
+            email: string;
+            /** Name */
+            name: string | null;
+            /** Picture */
+            picture: string | null;
+        };
+        /** ValidationError */
+        ValidationError: {
+            /** Location */
+            loc: (string | number)[];
+            /** Message */
+            msg: string;
+            /** Error Type */
+            type: string;
+            /** Input */
+            input?: unknown;
+            /** Context */
+            ctx?: Record<string, never>;
+        };
     };
-    /** Credit */
-    Credit: {
-      /** Name */
-      name: string;
-      /** Source Id */
-      source_id?: number | null;
-      /** Role */
-      role?: string | null;
-      /** Department */
-      department?: string | null;
-      /** Character */
-      character?: string | null;
-      /** Language */
-      language?: string | null;
-      /** Url */
-      url?: string | null;
-    };
-    /** ExternalID */
-    ExternalID: {
-      /** Namespace */
-      namespace: string;
-      /** Value */
-      value: string;
-    };
-    /** HTTPValidationError */
-    HTTPValidationError: {
-      /** Detail */
-      detail: components["schemas"]["ValidationError"][];
-    };
-    /**
-     * Kind
-     * @enum {string}
-     */
-    Kind: "movie" | "tv" | "anime" | "manga";
-    /** Metadata */
-    Metadata: {
-      /** Api Base Url */
-      api_base_url: string | null;
-      /** Image Url */
-      image_url: string | null;
-      /** Original Title */
-      original_title: string | null;
-      /** Alternative Titles */
-      alternative_titles: string[];
-      /** Format */
-      format: string | null;
-      /** Start Date */
-      start_date: string | null;
-      /** End Date */
-      end_date: string | null;
-      /** Original Language */
-      original_language: string | null;
-      /** Synopsis */
-      synopsis: string | null;
-      /** Synopsis Language */
-      synopsis_language: string | null;
-      /** Keywords */
-      keywords: string[];
-      /** Themes */
-      themes: string[];
-      /** Staff */
-      staff: components["schemas"]["Credit"][];
-      /** Cast */
-      cast: components["schemas"]["Credit"][];
-      /** Studios */
-      studios: string[];
-      /** Ratings */
-      ratings: components["schemas"]["Rating"][];
-      /** Relations */
-      relations: components["schemas"]["Relation"][];
-      /** External Ids */
-      external_ids: components["schemas"]["ExternalID"][];
-      /** Endpoints */
-      endpoints: string[];
-    };
-    /** Rating */
-    Rating: {
-      /** Source */
-      source: string;
-      /** Value */
-      value: number;
-      /**
-       * Scale
-       * @default 10
-       */
-      scale: number;
-      /** Votes */
-      votes?: number | null;
-    };
-    /** Relation */
-    Relation: {
-      /** Relation */
-      relation: string;
-      /** Source */
-      source: string;
-      /** Source Id */
-      source_id: string;
-      /** Source Type */
-      source_type?: string | null;
-      /** Title */
-      title?: string | null;
-      /** Url */
-      url?: string | null;
-    };
-    /**
-     * Source
-     * @enum {string}
-     */
-    Source: "tmdb" | "jikan";
-    /** StoredTitle */
-    StoredTitle: {
-      source: components["schemas"]["Source"];
-      source_type: components["schemas"]["Kind"];
-      /** Source Id */
-      source_id: number;
-      /** Title */
-      title: string;
-      /** Url */
-      url: string;
-      /** Year */
-      year?: number | null;
-      /** Genres */
-      genres?: string[];
-      /**
-       * Fetched At
-       * Format: date-time
-       */
-      fetched_at: string;
-      metadata: components["schemas"]["Metadata"];
-      /** Id */
-      id: number;
-    };
-    /** TitlePage */
-    TitlePage: {
-      /** Items */
-      items: components["schemas"]["StoredTitle"][];
-      /** Total */
-      total: number;
-      /** Offset */
-      offset: number;
-      /** Limit */
-      limit: number;
-    };
-    /** ValidationError */
-    ValidationError: {
-      /** Location */
-      loc: (string | number)[];
-      /** Message */
-      msg: string;
-      /** Error Type */
-      type: string;
-      /** Input */
-      input?: unknown;
-      /** Context */
-      ctx?: Record<string, never>;
-    };
-  };
-  responses: never;
-  parameters: never;
-  requestBodies: never;
-  headers: never;
-  pathItems: never;
+    responses: never;
+    parameters: never;
+    requestBodies: never;
+    headers: never;
+    pathItems: never;
 }
 export type $defs = Record<string, never>;
 export interface operations {
-  health_health_get: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    health_health_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: "ok";
+                    };
+                };
+            };
+        };
     };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
+    google_login_auth_google_get: {
+        parameters: {
+            query?: {
+                return_to?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
-        content: {
-          "application/json": {
-            [key: string]: "ok";
-          };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
         };
-      };
     };
-  };
-  list_titles_titles_get: {
-    parameters: {
-      query?: {
-        source?: components["schemas"]["Source"] | null;
-        source_type?: components["schemas"]["Kind"] | null;
-        year?: number | null;
-        genre?: string | null;
-        q?: string | null;
-        offset?: number;
-        limit?: number;
-      };
-      header?: never;
-      path?: never;
-      cookie?: never;
+    google_callback_auth_callback_get: {
+        parameters: {
+            query?: {
+                code?: string | null;
+                state?: string | null;
+                error?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
     };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
+    me_auth_me_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
-        content: {
-          "application/json": components["schemas"]["TitlePage"];
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["User"];
+                };
+            };
         };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
     };
-  };
-  catalog_facets_titles_facets_get: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    logout_auth_logout_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
     };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
+    list_titles_titles_get: {
+        parameters: {
+            query?: {
+                source?: components["schemas"]["Source"] | null;
+                source_type?: components["schemas"]["Kind"] | null;
+                year?: number | null;
+                genre?: string | null;
+                q?: string | null;
+                offset?: number;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
-        content: {
-          "application/json": components["schemas"]["CatalogFacets"];
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TitlePage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
         };
-      };
     };
-  };
-  get_title_titles__title_id__get: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        title_id: number;
-      };
-      cookie?: never;
+    catalog_facets_titles_facets_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CatalogFacets"];
+                };
+            };
+        };
     };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
+    get_title_titles__title_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                title_id: number;
+            };
+            cookie?: never;
         };
-        content: {
-          "application/json": components["schemas"]["StoredTitle"];
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StoredTitle"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
         };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
     };
-  };
+    search_search_get: {
+        parameters: {
+            query: {
+                source?: components["schemas"]["Source"] | null;
+                source_type?: components["schemas"]["Kind"] | null;
+                year?: number | null;
+                genre?: string | null;
+                q: components["schemas"]["SearchText"];
+                offset?: number;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SearchPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
 }
