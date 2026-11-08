@@ -36,7 +36,7 @@ test.beforeEach(async ({ page }) => {
 test("browse continuously, search, details and empty results", async ({
   page,
 }) => {
-  await page.goto("/");
+  await page.goto("/?view=catalog");
   await expect(page.getByText("31 titoli", { exact: true })).toBeVisible();
   await expect(page.locator(".title-card")).toHaveCount(15);
   await page
@@ -80,7 +80,7 @@ test("browse continuously, search, details and empty results", async ({
 
 test("phone category filters, API error and retry", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/");
+  await page.goto("/?view=catalog");
   await page.getByRole("button", { name: "Manga 0" }).click();
   await expect(page).toHaveURL(/source_type=manga/);
   await expect(
@@ -220,7 +220,7 @@ test("next-page errors keep cards and retry the same offset once", async ({
       },
     });
   });
-  await page.goto("/");
+  await page.goto("/?view=catalog");
   await page
     .getByRole("link", { name: "Apri Titolo 15", exact: true })
     .scrollIntoViewIfNeeded();
@@ -253,7 +253,7 @@ test("a late page cannot contaminate a new category", async ({ page }) => {
       },
     });
   });
-  await page.goto("/");
+  await page.goto("/?view=catalog");
   await page
     .getByRole("link", { name: "Apri Titolo 15", exact: true })
     .scrollIntoViewIfNeeded();
@@ -273,7 +273,7 @@ for (const width of [1440, 390]) {
   }) => {
     await page.setViewportSize({ width, height: 900 });
     await page.emulateMedia({ colorScheme: "light", reducedMotion: "reduce" });
-    await page.goto("/");
+    await page.goto("/?view=catalog");
     await expect(page.locator("html")).not.toHaveClass(/dark/);
     await page.emulateMedia({ colorScheme: "dark" });
     await expect(page.locator("html")).toHaveClass(/dark/);
@@ -307,7 +307,7 @@ for (const width of [1440, 390]) {
     page,
   }) => {
     await page.setViewportSize({ width, height: 900 });
-    await page.goto("/");
+    await page.goto("/?view=catalog");
     await expect(page.locator(".title-card").first()).toBeVisible();
     const frame = () =>
       page.locator("main").evaluate((element) => {
