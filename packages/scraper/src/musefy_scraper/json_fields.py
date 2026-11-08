@@ -37,7 +37,13 @@ def number(value: JsonValue) -> float | None:
 
 def day(value: JsonValue) -> date | None:
     raw = text(value)
-    return date.fromisoformat(raw[:10]) if raw else None
+    if raw is None:
+        return None
+    if len(raw) in (4, 7):
+        # Validate partial ISO dates without inventing an unknown month/day.
+        date.fromisoformat(raw + ("-01-01" if len(raw) == 4 else "-01"))
+        return None
+    return date.fromisoformat(raw[:10])
 
 
 def names(value: JsonValue) -> list[str]:

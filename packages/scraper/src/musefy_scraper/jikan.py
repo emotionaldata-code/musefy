@@ -160,6 +160,7 @@ def normalize(identity: Identity, progress: Progress) -> Title:
     is_manga = identity.source_type == Kind.MANGA
     aired = obj(details.get("published" if is_manga else "aired", {}))
     start = day(aired.get("from"))
+    start_parts = obj(obj(aired.get("prop", {})).get("from", {}))
     score = number(details.get("score"))
     votes = integer(details.get("scored_by"))
     title = text(details.get("title"))
@@ -176,7 +177,7 @@ def normalize(identity: Identity, progress: Progress) -> Title:
         **identity.model_dump(),
         title=title,
         url=url,
-        year=integer(details.get("year")) or (start.year if start else None),
+        year=integer(details.get("year")) or (start.year if start else integer(start_parts.get("year"))),
         genres=names(details.get("genres", [])) + names(details.get("explicit_genres", [])),
         fetched_at=datetime.now(UTC),
         metadata=Metadata(

@@ -70,7 +70,9 @@ ricrea i container e può causare una breve indisponibilità; non è un deploy s
 interruzioni. Non usare `down -v`, `freshVolumes` o volumi casuali nei redeploy.
 
 Due servizi nel profilo manuale `ingestion` possono eseguire `musefy worker --source tmdb` e `--source jikan`.
-Il deploy predefinito avvia solo PostgreSQL, migrazioni, API e frontend.
+Compose senza servizi espliciti avvia solo PostgreSQL, migrazioni, API e frontend.
+In produzione il comando Dokploy include anche `scraper-tmdb scraper-jikan`:
+entrambi sono attivi e vengono aggiornati insieme all'applicazione nei deploy successivi.
 I due processi ospitano **quattro runner async in memoria**, uno per film, serie TV,
 anime e manga. Ogni runner ha client HTTP, slot di concorrenza, coda limitata,
 checkpoint e ciclo di ripartenza propri: nessuno attende il completamento degli altri.
