@@ -264,6 +264,7 @@ h1 {
   gap: 28px var(--gap);
 }
 .title-card {
+  position: relative;
   min-width: 0;
   display: block;
 }
@@ -284,7 +285,7 @@ h1 {
 .title-card:hover .poster img {
   opacity: 0.86;
 }
-.title-card:active .poster {
+.title-card > a:active .poster {
   transform: scale(0.985);
   transition-duration: 100ms;
 }
@@ -315,34 +316,82 @@ h1 {
   margin: 4px 0 0;
 }
 .title-actions-block {
-  margin-top: 10px;
+  margin-top: 16px;
 }
 .title-actions {
   display: flex;
-  gap: 4px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 [data-slot="button"].title-action {
-  flex: 1;
   min-height: 44px;
   height: auto;
-  padding: 6px;
-  gap: 4px;
-  border-color: var(--border);
-  border-radius: 6px;
-  background: transparent;
+  padding: 10px 16px;
+  gap: 8px;
+  border-color: transparent;
+  border-radius: 999px;
+  background: var(--raised);
   color: var(--muted-text);
-  font-size: 0.75rem;
-  box-shadow: none;
-}
-[data-slot="button"].title-action[aria-pressed="true"] {
-  color: var(--foreground);
-  background: var(--card);
-  border-color: var(--muted-text);
+  font-size: 0.8125rem;
+  transition-duration: 150ms;
 }
 .title-actions .title-action:hover {
   color: var(--foreground);
-  background: var(--card);
+  background: var(--border);
+}
+[data-slot="button"].title-action[aria-pressed="true"] {
+  color: var(--background);
+  background: var(--foreground);
+}
+[data-slot="button"].title-action:active {
+  transform: scale(0.94);
+  transition-duration: 80ms;
+}
+.title-actions-block[data-variant="compact"] {
+  margin-top: 0;
+}
+[data-variant="compact"] .title-actions {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  gap: 6px;
+  flex-wrap: nowrap;
+  transition: opacity 150ms ease-out;
+}
+[data-variant="compact"] .title-action {
+  width: 36px;
+  height: 36px;
+  min-height: 36px;
+  padding: 0;
+  background: var(--background);
+}
+@media (hover: hover) and (pointer: fine) {
+  .title-card [data-variant="compact"] .title-actions {
+    opacity: 0;
+    pointer-events: none;
+  }
+  .title-card:hover [data-variant="compact"] .title-actions,
+  .title-card:focus-within [data-variant="compact"] .title-actions,
+  .title-card [data-busy="true"] .title-actions,
+  .title-card [data-error="true"] .title-actions {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+@media (any-pointer: coarse) {
+  .title-card [data-variant="compact"] .title-actions {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  [data-variant="compact"] .title-action {
+    width: 44px;
+    height: 44px;
+  }
+}
+@media (prefers-contrast: more) {
+  [data-slot="button"].title-action {
+    border-color: currentColor;
+  }
 }
 .title-card .title-action-error,
 .title-action-error {

@@ -43,7 +43,7 @@ export function TitleCard({ title }: { title: Title }) {
             .join(" · ")}
         </p>
       </a>
-      <TitleActions title={title} />
+      <TitleActions title={title} variant="compact" />
     </article>
   );
 }

@@ -89,6 +89,7 @@ for (const width of [1440, 768, 390]) {
       name: "Wishlist: Una storia",
       exact: true,
     });
+    await card.hover();
     await wishlist.click();
     await expect(wishlist).toHaveAttribute("aria-pressed", "true");
     await expect(page).not.toHaveURL(/#title/);
@@ -115,11 +116,13 @@ for (const width of [1440, 768, 390]) {
     await expect(
       dialog.getByRole("button", { name: "Wishlist: Una storia", exact: true }),
     ).toHaveAttribute("aria-pressed", "true");
+    await page.screenshot({ path: `/tmp/musefy-actions-detail-${width}.png`, fullPage: true });
     await dialog
       .getByRole("button", { name: "Wishlist: Una storia", exact: true })
       .click();
     await page.keyboard.press("Escape");
     await expect(wishlist).toHaveAttribute("aria-pressed", "false");
+    await card.hover();
     await wishlist.click();
     await page.reload();
     await expect(
@@ -134,6 +137,7 @@ for (const width of [1440, 768, 390]) {
       "Guarda più tardi",
     );
     await expect(page.locator(".title-card")).toHaveCount(1);
+    await page.locator(".title-card").first().hover();
     await page
       .getByRole("button", { name: "Wishlist: Una storia", exact: true })
       .click();
@@ -169,6 +173,7 @@ test("failed writes preserve state, prevent duplicates and can be retried", asyn
     name: "Wishlist: Una storia",
     exact: true,
   });
+  await card.hover();
   await wishlist.click();
   await expect(wishlist).toBeDisabled();
   await expect(
@@ -191,6 +196,7 @@ test("removing a saved title does not skip the next page", async ({ page }) => {
     states.set(id, { watched: false, wishlist: true });
   await page.goto("/?view=wishlist");
   await expect(page.locator(".title-card").first()).toBeVisible();
+  await page.locator(".title-card").first().hover();
   await page
     .getByRole("button", { name: "Wishlist: Una storia", exact: true })
     .click();
@@ -212,6 +218,7 @@ test("expired sessions during a write return to login", async ({ page }) => {
     route.fulfill({ status: 401, json: {} }),
   );
   await page.goto("/?view=catalog");
+  await page.locator(".title-card").first().hover();
   await page
     .getByRole("button", { name: "Wishlist: Una storia", exact: true })
     .click();
@@ -230,9 +237,83 @@ test("refresh reads membership changes from another browser", async ({
     name: "Wishlist: Una storia",
     exact: true,
   });
+  await page.locator(".title-card").first().hover();
   await wishlist.click();
   await expect(wishlist).toHaveAttribute("aria-pressed", "true");
   states.set(1, { watched: false, wishlist: false });
   await page.getByRole("button", { name: "Aggiorna catalogo" }).click();
   await expect(wishlist).toHaveAttribute("aria-pressed", "false");
+});
+
+test("card actions appear on hover and keyboard focus without opening the title", async ({ page }) => {
+  await backend(page);
+  await page.goto("/?view=catalog");
+  const card = page.locator(".title-card").first();
+  const actions = card.getByRole("group");
+  const watched = card.getByRole("button", { name: "Già visto: Una storia", exact: true });
+  await expect(actions).toHaveCSS("opacity", "0");
+  await card.hover();
+  await expect(actions).toHaveCSS("opacity", "1");
+  const posterBox = await card.locator(".poster").boundingBox();
+  const actionsBox = await actions.boundingBox();
+  expect(posterBox).not.toBeNull();
+  expect(actionsBox!.x + actionsBox!.width).toBeLessThan(posterBox!.x + posterBox!.width);
+  expect(actionsBox!.y).toBeGreaterThan(posterBox!.y);
+  await watched.click();
+  await expect(watched).toHaveAttribute("aria-pressed", "true");
+  await expect(page).not.toHaveURL(/#title/);
+  await page.mouse.move(0, 0);
+  await watched.blur();
+  await expect(actions).toHaveCSS("opacity", "0");
+  await card.getByRole("link").focus();
+  await page.keyboard.press("Tab");
+  await expect(watched).toBeFocused();
+  await expect(actions).toHaveCSS("opacity", "1");
+  await page.keyboard.press("Space");
+  await expect(watched).toHaveAttribute("aria-pressed", "false");
+  await page.getByRole("button", { name: "Attiva tema scuro" }).click();
+  await card.hover();
+  await expect(actions).toHaveCSS("opacity", "1");
+  await page.screenshot({ path: "/tmp/musefy-actions-dark.png", fullPage: true });
+  await card.getByRole("link").click();
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await page.screenshot({ path: "/tmp/musefy-actions-detail-dark.png", fullPage: true });
+  await page.keyboard.press("Escape");
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await expect(actions).toHaveCSS("transition-duration", "0s");
+});
+
+test("touch actions remain visible with circular targets and rounded detail buttons", async ({ browser, baseURL }) => {
+  const context = await browser.newContext({
+    baseURL,
+    viewport: { width: 390, height: 844 },
+    hasTouch: true,
+    isMobile: true,
+  });
+  try {
+    const page = await context.newPage();
+    await backend(page);
+    await page.goto("/?view=catalog");
+    const card = page.locator(".title-card").first();
+    const actions = card.getByRole("group");
+    const wishlist = card.getByRole("button", { name: "Wishlist: Una storia", exact: true });
+    await expect(actions).toHaveCSS("opacity", "1");
+    await expect(wishlist).toHaveCSS("width", "44px");
+    await expect(wishlist).toHaveCSS("height", "44px");
+    await expect(wishlist).toHaveCSS("border-radius", "999px");
+    await wishlist.tap();
+    await expect(wishlist).toHaveAttribute("aria-pressed", "true");
+    await expect(wishlist).toBeEnabled();
+    await expect(wishlist).toHaveCSS("background-color", "rgb(23, 23, 23)");
+    await expect(page).not.toHaveURL(/#title/);
+    await page.screenshot({ path: "/tmp/musefy-actions-touch.png", fullPage: true });
+    await card.getByRole("link").tap();
+    const detailWishlist = page.getByRole("dialog").getByRole("button", { name: "Wishlist: Una storia", exact: true });
+    await expect(detailWishlist).toHaveText("Wishlist");
+    await expect(detailWishlist).toHaveCSS("border-radius", "999px");
+    await expect(detailWishlist).toHaveAttribute("aria-pressed", "true");
+    await page.screenshot({ path: "/tmp/musefy-actions-detail-touch.png", fullPage: true });
+  } finally {
+    await context.close();
+  }
 });
