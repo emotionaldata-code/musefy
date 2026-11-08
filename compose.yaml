@@ -1,0 +1,64 @@
+x-app: &app
+  image: musefy:local
+  build: .
+  environment: &environment
+    DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-musefy}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-musefy}
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-musefy}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-musefy}
+    ports:
+      - '127.0.0.1:5432:5432'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 3s
+      timeout: 3s
+      retries: 20
+  migrate:
+    <<: *app
+    command: [alembic, upgrade, head]
+    depends_on:
+      postgres:
+        condition: service_healthy
+  api:
+    <<: *app
+    networks:
+      default:
+        aliases: [musefy-api]
+    ports:
+      - '127.0.0.1:8000:8000'
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+  frontend:
+    build: ./packages/frontend
+    ports:
+      - '127.0.0.1:5173:80'
+    depends_on:
+      api:
+        condition: service_started
+  cli:
+    <<: *app
+    profiles: [manual]
+    entrypoint: [musefy]
+    environment:
+      <<: *environment
+      TMDB_READ_ACCESS_TOKEN: ${TMDB_READ_ACCESS_TOKEN:-}
+      TMDB_RPS: ${TMDB_RPS:-10}
+      JIKAN_BASE_URL: ${JIKAN_BASE_URL:-https://api.jikan.moe/v4}
+      JIKAN_INTERVAL: ${JIKAN_INTERVAL:-1.1}
+      CONCURRENCY: ${CONCURRENCY:-2}
+      HTTP_TIMEOUT: ${HTTP_TIMEOUT:-30}
+      HTTP_RETRIES: ${HTTP_RETRIES:-3}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+volumes:
+  postgres-data:

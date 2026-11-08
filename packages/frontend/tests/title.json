@@ -1,0 +1,41 @@
+{
+  "source": "tmdb",
+  "source_type": "movie",
+  "source_id": 1,
+  "title": "Una storia",
+  "url": "https://example.test/1",
+  "year": 2020,
+  "genres": [
+    "Drama"
+  ],
+  "fetched_at": "2026-11-08T11:56:47.098779Z",
+  "metadata": {
+    "api_base_url": null,
+    "image_url": null,
+    "original_title": null,
+    "alternative_titles": [],
+    "format": null,
+    "start_date": null,
+    "end_date": null,
+    "original_language": null,
+    "synopsis": "Sinossi",
+    "synopsis_language": null,
+    "keywords": [],
+    "themes": [],
+    "staff": [],
+    "cast": [],
+    "studios": [],
+    "ratings": [
+      {
+        "source": "tmdb",
+        "value": 8.0,
+        "scale": 10.0,
+        "votes": 10
+      }
+    ],
+    "relations": [],
+    "external_ids": [],
+    "endpoints": []
+  },
+  "id": 1
+}

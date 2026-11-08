@@ -1,0 +1,100 @@
+x-app: &app
+  image: musefy-production:latest
+  build: .
+  environment: &database
+    DATABASE_URL: postgresql+asyncpg://musefy:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}@postgres:5432/musefy
+  networks: [database, default]
+  logging: &logging
+    driver: json-file
+    options:
+      max-size: 10m
+      max-file: '3'
+
+x-worker: &worker
+  <<: *app
+  restart: unless-stopped
+  init: true
+  stop_grace_period: 60s
+  environment: &scraper
+    <<: *database
+    TMDB_RPS: ${TMDB_RPS:-10}
+    JIKAN_BASE_URL: ${JIKAN_BASE_URL:-https://api.tenrai.org/v1}
+    JIKAN_INTERVAL: ${JIKAN_INTERVAL:-1.1}
+    CONCURRENCY: ${CONCURRENCY:-2}
+    HTTP_TIMEOUT: ${HTTP_TIMEOUT:-30}
+    HTTP_RETRIES: ${HTTP_RETRIES:-3}
+  depends_on:
+    migrate:
+      condition: service_completed_successfully
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: musefy
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+      POSTGRES_DB: musefy
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks: [database]
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U musefy -d musefy']
+      interval: 3s
+      timeout: 3s
+      retries: 30
+    logging: *logging
+  migrate:
+    <<: *app
+    restart: 'no'
+    command: [alembic, upgrade, head]
+    networks: [database]
+    depends_on:
+      postgres:
+        condition: service_healthy
+  api:
+    <<: *app
+    restart: unless-stopped
+    environment:
+      <<: *database
+      CORS_ORIGINS: '["https://musefy.edia-company.com"]'
+    networks:
+      database:
+      default:
+        aliases: [musefy-api]
+    healthcheck:
+      test: [CMD, python, -c, 'import urllib.request; urllib.request.urlopen("http://127.0.0.1:8000/health", timeout=5)']
+      interval: 15s
+      timeout: 6s
+      retries: 5
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+  frontend:
+    build:
+      context: ./packages/frontend
+      args:
+        VITE_API_BASE_URL: https://api-musefy.edia-company.com
+    restart: unless-stopped
+    networks: [default]
+    depends_on:
+      api:
+        condition: service_healthy
+    logging: *logging
+  scraper-tmdb:
+    <<: *worker
+    command: [musefy, worker, --source, tmdb, --interval, '3600']
+    environment:
+      <<: *scraper
+      TMDB_READ_ACCESS_TOKEN: ${TMDB_READ_ACCESS_TOKEN:?Set TMDB_READ_ACCESS_TOKEN}
+  scraper-jikan:
+    <<: *worker
+    command: [musefy, worker, --source, jikan, --interval, '3600']
+
+volumes:
+  postgres-data:
+
+networks:
+  database:
+    internal: true
+  default:
