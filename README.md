@@ -150,7 +150,11 @@ npm run build
 npm run lint
 npm run api:types # rigenera i tipi dall'OpenAPI locale
 npm test # API simulate; richiede Google Chrome installato
+npm test -- --headed # include verifica layout con scrollbar classiche; richiede un display
 ```
+
+In CI Chrome usa un display virtuale Xvfb: controlla anche che aprire e chiudere i
+filtri non cambi la larghezza del catalogo, su desktop e mobile.
 
 Per tornare alla build Docker, terminare Vite e lanciare `docker compose up -d frontend`
 dalla root. Per ricostruire dopo modifiche: `docker compose up --build -d frontend`.

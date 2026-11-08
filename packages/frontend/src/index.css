@@ -70,6 +70,12 @@ body {
   margin: 0;
   min-width: 320px;
 }
+@supports (scrollbar-gutter: stable) {
+  /* The root already reserves the gutter; Radix's scroll lock must not add it twice. */
+  :root body[data-scroll-locked] {
+    margin-right: 0 !important;
+  }
+}
 button,
 a,
 input,

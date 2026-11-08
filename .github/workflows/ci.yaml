@@ -47,7 +47,8 @@ jobs:
         working-directory: packages/frontend
       - run: npx playwright install --with-deps chrome
         working-directory: packages/frontend
-      - run: npm test
+      # Headed Chrome exposes classic scrollbar layout changes hidden by headless mode.
+      - run: xvfb-run --auto-servernum npm test -- --headed
         working-directory: packages/frontend
       - run: docker build -t musefy:ci .
       - run: docker build -t musefy-frontend:ci packages/frontend

@@ -288,7 +288,7 @@ for (const width of [1440, 390]) {
       .getByRole("link", { name: "Apri Una storia", exact: true })
       .click();
     await expect(
-      page.getByRole("dialog").getByText("TMDB", { exact: false }),
+      page.getByRole("dialog").getByText("TMDB · 10 voti", { exact: true }),
     ).not.toBeVisible();
     await page.getByText("Altri dettagli", { exact: true }).click();
     await expect(
@@ -299,5 +299,39 @@ for (const width of [1440, 390]) {
         .getByRole("dialog")
         .evaluate((element) => element.scrollWidth <= element.clientWidth),
     ).toBe(true);
+  });
+}
+
+for (const width of [1440, 390]) {
+  test(`filters keep the catalog width stable at ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("/");
+    await expect(page.locator(".title-card").first()).toBeVisible();
+    const frame = () =>
+      page.locator("main").evaluate((element) => {
+        const { x, width } = element.getBoundingClientRect();
+        return { x, width };
+      });
+    const before = await frame();
+    for (const name of ["Fonte", "Anno", "Genere"]) {
+      await page.getByRole("combobox", { name, exact: true }).click();
+      await expect(page.locator("body")).toHaveAttribute(
+        "data-scroll-locked",
+        /\d/,
+      );
+      expect(await frame()).toEqual(before);
+      await page.keyboard.press("Escape");
+      await expect(page.locator("body")).not.toHaveAttribute(
+        "data-scroll-locked",
+      );
+      expect(await frame()).toEqual(before);
+    }
+    await page.getByRole("button", { name: "Manga 0", exact: true }).click();
+    await expect(
+      page.getByRole("heading", { name: "Nessun titolo trovato" }),
+    ).toBeVisible();
+    expect(await frame()).toEqual(before);
   });
 }
