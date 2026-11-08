@@ -300,6 +300,14 @@ Sinossi modificate durante il calcolo non vengono salvate; quelle modificate dop
 sono escluse dalla ricerca fino al prossimo batch. `--force` ricalcola esplicitamente.
 I nuovi titoli acquisiti richiedono un successivo batch manuale.
 
+`--batch-size` limita il batch DB (default 32, massimo 1024); l’inferenza resta
+suddivisa in blocchi massimi di 128. Da 128 elementi l’upload usa `COPY BINARY`
+su una tabella temporanea e upsert nella stessa transazione, riducendo il traffico
+dei vettori sul tunnel. Il recheck delle sinossi trasferisce solo gli hash.
+Per un catalogo ampio: `uv run musefy embed --batch-size 1024 --threads 8`.
+Con una wheel CUDA locale usare `uv run --no-sync musefy embed --device cuda
+--batch-size 1024 --threads 4`: `--no-sync` evita di ripristinare la wheel CPU del lockfile.
+
 ```bash
 uv sync --all-packages --frozen
 uv run musefy embedding-model # scarica e verifica una volta il modello fissato

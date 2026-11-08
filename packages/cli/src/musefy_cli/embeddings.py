@@ -23,8 +23,8 @@ async def populate(
     max_items: int | None = None,
     force: bool = False,
 ) -> EmbeddingStats:
-    if not 1 <= batch_size <= 128 or (max_items is not None and max_items < 1):
-        raise ValueError("batch_size must be 1–128 and max_items must be positive")
+    if not 1 <= batch_size <= 1024 or (max_items is not None and max_items < 1):
+        raise ValueError("batch_size must be 1–1024 and max_items must be positive")
     stats = EmbeddingStats()
     after_id = 0
     while max_items is None or stats.processed < max_items:
@@ -33,12 +33,19 @@ async def populate(
             items = await embeddings.pending(session, after_id=after_id, limit=remaining, force=force)
         if not items:
             break
-        vectors = await embedder.embed_passages([item.synopsis for item in items])
+        next_id = items[-1].title_id
+        # Group similar lengths inside the bounded DB batch to reduce tokenizer padding.
+        items.sort(key=lambda item: len(item.synopsis))
+        vectors: list[list[float]] = []
+        for offset in range(0, len(items), 128):
+            vectors.extend(
+                await embedder.embed_passages([item.synopsis for item in items[offset : offset + 128]])
+            )
         async with sessions.begin() as session:
             saved = await embeddings.upsert_batch(session, items, vectors)
         stats.processed += len(items)
         stats.embedded += saved
         stats.batches += 1
-        after_id = items[-1].title_id
+        after_id = next_id
         logging.info("Embeddings committed: %d/%d", stats.embedded, stats.processed)
     return stats

@@ -1,8 +1,11 @@
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import cast
+from typing import Protocol, cast
+from uuid import uuid4
 
-from sqlalchemy import String, func, or_, select
+import asyncpg  # type: ignore[import-untyped]
+from pgvector.asyncpg import register_vector
+from sqlalchemy import String, func, or_, select, text
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.elements import ColumnElement
@@ -18,6 +21,55 @@ class EmbeddingInput:
     title_id: int
     synopsis: str
     input_hash: str
+
+
+type _EmbeddingRecord = tuple[int, list[float], str, str, datetime]
+
+
+class _CopyConnection(Protocol):
+    # asyncpg has no typing marker; keep its untyped boundary restricted to COPY.
+    async def copy_records_to_table(
+        self, table_name: str, *, records: list[_EmbeddingRecord], columns: list[str]
+    ) -> str: ...
+
+    async def reset_type_codec(self, typename: str, *, schema: str) -> None: ...
+
+
+async def _copy_upsert(session: AsyncSession, records: list[_EmbeddingRecord]) -> int:
+    table = f"embedding_batch_{uuid4().hex}"
+    await session.execute(text(f'CREATE TEMP TABLE "{table}" (LIKE title_embeddings) ON COMMIT DROP'))
+    connection = await session.connection()
+    raw = await connection.get_raw_connection()
+    driver = raw.driver_connection
+    if not isinstance(driver, asyncpg.Connection):
+        raise TypeError("Binary embedding upload requires asyncpg")
+    copying = cast(_CopyConnection, driver)
+    try:
+        await register_vector(driver)
+        await copying.copy_records_to_table(
+            table,
+            records=records,
+            columns=["title_id", "embedding", "profile", "input_hash", "embedded_at"],
+        )
+    finally:
+        try:
+            # SQLAlchemy's Vector binds text: its pooled connection must regain text codecs.
+            for name in ("vector", "halfvec", "sparsevec"):
+                await copying.reset_type_codec(name, schema="public")
+        except BaseException:
+            # COPY failures can abort the transaction, preventing codec reset queries.
+            await connection.invalidate()
+            raise
+    result = await session.scalars(
+        text(
+            "INSERT INTO title_embeddings (title_id, embedding, profile, input_hash, embedded_at) "
+            f'SELECT title_id, embedding, profile, input_hash, embedded_at FROM "{table}" WHERE true '
+            "ON CONFLICT (title_id) DO UPDATE SET "
+            "embedding = EXCLUDED.embedding, profile = EXCLUDED.profile, "
+            "input_hash = EXCLUDED.input_hash, embedded_at = EXCLUDED.embedded_at RETURNING title_id"
+        )
+    )
+    return len(result.all())
 
 
 def _synopsis() -> ColumnElement[str]:
@@ -59,26 +111,32 @@ async def upsert_batch(session: AsyncSession, items: list[EmbeddingInput], vecto
         return 0
     # Lock the small batch until caller commits: refreshed synopses cannot receive stale vectors.
     rows = await session.execute(
-        select(TitleRow.id, _synopsis())
+        select(TitleRow.id, _hash())
         .where(TitleRow.id.in_([item.title_id for item in items]))
         .order_by(TitleRow.id)
         .with_for_update()
     )
-    current = {title_id: synopsis for title_id, synopsis in rows}
+    current = {title_id: digest for title_id, digest in rows}
     now = datetime.now(UTC)
+    records: list[_EmbeddingRecord] = [
+        (item.title_id, vector, PROFILE, item.input_hash, now)
+        for item, vector in zip(items, vectors, strict=True)
+        if current.get(item.title_id) == item.input_hash and input_hash(item.synopsis) == item.input_hash
+    ]
+    if not records:
+        return 0
+    if len(items) >= 128:
+        return await _copy_upsert(session, records)
     values = [
         {
-            "title_id": item.title_id,
+            "title_id": title_id,
             "embedding": vector,
-            "profile": PROFILE,
-            "input_hash": item.input_hash,
-            "embedded_at": now,
+            "profile": profile,
+            "input_hash": digest,
+            "embedded_at": timestamp,
         }
-        for item, vector in zip(items, vectors, strict=True)
-        if current.get(item.title_id) == item.synopsis and input_hash(item.synopsis) == item.input_hash
+        for title_id, vector, profile, digest, timestamp in records
     ]
-    if not values:
-        return 0
     statement = insert(EmbeddingRow).values(values)
     returning = statement.on_conflict_do_update(
         index_elements=[EmbeddingRow.title_id],

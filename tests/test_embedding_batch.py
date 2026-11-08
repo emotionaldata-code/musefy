@@ -57,6 +57,34 @@ async def test_batch_rejects_unbounded_or_invalid_sizes() -> None:
     from sqlalchemy.ext.asyncio import async_sessionmaker
 
     sessions: Sessions = async_sessionmaker()
-    for batch_size, max_items in [(0, None), (129, None), (1, 0)]:
+    for batch_size, max_items in [(0, None), (1025, None), (1, 0)]:
         with pytest.raises(ValueError):
             await populate(sessions, Embedder(), batch_size=batch_size, max_items=max_items)
+
+
+async def test_large_database_batch_uses_bounded_inference_and_one_commit(
+    db: tuple[AsyncEngine, Sessions],
+) -> None:
+    _, sessions = db
+    async with sessions.begin() as session:
+        for source_id in range(1, 130):
+            title = example(source_id=source_id)
+            title.metadata.synopsis = "long synopsis " * 100 if source_id == 1 else "short synopsis"
+            await titles.upsert(session, title)
+    sizes: list[int] = []
+
+    def encode(texts: list[str]) -> list[list[float]]:
+        sizes.append(len(texts))
+        return [vector() for _ in texts]
+
+    stats = await populate(sessions, Embedder(factory=lambda: encode), batch_size=1024)
+    assert sizes == [128, 1]
+    assert (stats.processed, stats.embedded, stats.batches) == (129, 129, 1)
+    stats = await populate(sessions, Embedder(factory=lambda: encode), batch_size=1024)
+    assert stats.processed == 0
+    assert sizes == [128, 1]
+
+    sizes.clear()
+    stats = await populate(sessions, Embedder(factory=lambda: encode), batch_size=128, force=True)
+    assert (stats.processed, stats.embedded, stats.batches) == (129, 129, 2)
+    assert sizes == [128, 1]

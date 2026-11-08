@@ -93,3 +93,34 @@ async def test_embedding_rejects_invalid_vectors(
             await embeddings.search(session, invalid, Filters())
         with pytest.raises(ValueError):
             await embeddings.upsert_batch(session, [], [invalid])
+
+
+async def test_binary_copy_upsert_rollback_and_restored_orm_codecs(db: tuple[AsyncEngine, Sessions]) -> None:
+    _, sessions = db
+    async with sessions.begin() as session:
+        for source_id in range(1, 129):
+            await titles.upsert(session, example(source_id=source_id))
+        batch = await embeddings.pending(session, limit=128)
+    assert len(batch) == 128
+    with pytest.raises(RuntimeError, match="interrupted"):
+        async with sessions.begin() as session:
+            assert await embeddings.upsert_batch(session, batch, [vector() for _ in batch]) == 128
+            raise RuntimeError("interrupted")
+    async with sessions.begin() as session:
+        assert await session.scalar(select(func.count()).select_from(EmbeddingRow)) == 0
+        assert await embeddings.upsert_batch(session, batch, [vector() for _ in batch]) == 128
+        # Two copies in one transaction need distinct temporary tables.
+        assert await embeddings.upsert_batch(session, batch, [vector(1) for _ in batch]) == 128
+        matches = await embeddings.search(session, vector(1), Filters(limit=100))
+        assert len(matches) == 100
+        assert all(score == pytest.approx(1) for _, score in matches)
+        # COPY's binary codec must not leak into SQLAlchemy's textual vector parameters/results.
+        assert await embeddings.upsert_batch(session, batch[:1], [vector()]) == 1
+        matches = await embeddings.search(session, vector(), Filters(limit=1))
+        assert matches[0][0].id == batch[0].title_id
+        assert matches[0][1] == pytest.approx(1)
+        stored = await session.get(EmbeddingRow, batch[0].title_id)
+        assert stored is not None and stored.embedding == vector()
+    async with sessions() as session:
+        assert await session.scalar(select(func.count()).select_from(EmbeddingRow)) == 128
+        assert await embeddings.pending(session) == []
