@@ -1,7 +1,7 @@
 import asyncio
 import logging
 from collections.abc import AsyncIterator
-from contextlib import aclosing, asynccontextmanager
+from contextlib import AsyncExitStack, aclosing, asynccontextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
@@ -20,6 +20,7 @@ from musefy_scraper.tmdb import TMDBScraper
 
 logger = logging.getLogger(__name__)
 type Scraper = TMDBScraper | JikanScraper
+type Results = dict[Kind, Counts | str]
 
 
 @dataclass
@@ -30,7 +31,9 @@ class Counts:
 
 
 @asynccontextmanager
-async def scraper_client(settings: Settings, source: Source) -> AsyncIterator[Scraper]:
+async def scraper_client(
+    settings: Settings, source: Source, limiter: RateLimit | None = None
+) -> AsyncIterator[Scraper]:
     headers: dict[str, str] = {}
     if source == Source.TMDB:
         token = settings.tmdb_read_access_token
@@ -40,9 +43,12 @@ async def scraper_client(settings: Settings, source: Source) -> AsyncIterator[Sc
     base_url = (
         "https://api.themoviedb.org/3" if source == Source.TMDB else str(settings.jikan_base_url).rstrip("/")
     )
-    limiter = (
-        RateLimit(1 / settings.tmdb_rps) if source == Source.TMDB else RateLimit(settings.jikan_interval, 60)
-    )
+    if limiter is None:
+        limiter = (
+            RateLimit(1 / settings.tmdb_rps)
+            if source == Source.TMDB
+            else RateLimit(settings.jikan_interval, 60)
+        )
     async with httpx.AsyncClient(
         base_url=base_url,
         headers=headers,
@@ -57,6 +63,20 @@ async def scraper_client(settings: Settings, source: Source) -> AsyncIterator[Sc
         client.event_hooks["request"].append(strip_export_auth)
         http = HTTP(client, limiter, settings.concurrency, settings.http_retries)
         yield TMDBScraper(http) if source == Source.TMDB else JikanScraper(http, base_url)
+
+
+@asynccontextmanager
+async def source_scrapers(settings: Settings, source: Source) -> AsyncIterator[dict[Kind, Scraper]]:
+    # Each kind owns its HTTP slots; only provider-wide request pacing is shared.
+    limiter = (
+        RateLimit(1 / settings.tmdb_rps) if source == Source.TMDB else RateLimit(settings.jikan_interval, 60)
+    )
+    kinds = TMDBScraper.kinds if source == Source.TMDB else JikanScraper.kinds
+    async with AsyncExitStack() as stack:
+        scrapers = {
+            kind: await stack.enter_async_context(scraper_client(settings, source, limiter)) for kind in kinds
+        }
+        yield scrapers
 
 
 async def process_item(
@@ -91,16 +111,21 @@ async def process_item(
     async with sessions.begin() as session:
         await ingestion.finish(session, job_id, title)
     counts.completed += 1
-    logger.info("%s completed=%d failed=%d", scraper.source, counts.completed, counts.failed)
+    logger.info(
+        "%s %s completed=%d failed=%d", identity.source, identity.source_type, counts.completed, counts.failed
+    )
 
 
 async def ingest(
     scraper: Scraper,
     sessions: Sessions,
     policy: ingestion.Policy,
+    kind: Kind,
     max_items: int | None = None,
     concurrency: int = 2,
 ) -> Counts:
+    if kind not in scraper.kinds:
+        raise ValueError("Unsupported scraper kind")
     counts = Counts()
     queue: asyncio.Queue[int | None] = asyncio.Queue(maxsize=concurrency * 2)
     scheduled = 0
@@ -120,7 +145,7 @@ async def ingest(
         after = 0
         while max_items is None or scheduled < max_items:
             async with sessions() as session:
-                rows = await ingestion.candidates(session, scraper.source, policy, after)
+                rows = await ingestion.candidates(session, scraper.source, kind, policy, after)
             if not rows:
                 break
             for row in rows:
@@ -135,35 +160,33 @@ async def ingest(
     async def produce() -> None:
         if await enqueue_pending():
             return
-        for kind in scraper.kinds:
-            async with sessions() as session:
-                state = await ingestion.checkpoint(session, scraper.source, kind)
-            async with aclosing(scraper.discover(kind, state)) as batches:
-                async for items, checkpoint in batches:
-                    # IDs and cursor commit together, before fetching any detail.
-                    async with sessions.begin() as session:
-                        await ingestion.discover(session, scraper.source, kind, items, checkpoint)
-                    logger.info(
-                        "%s %s discovery: offset=%d complete=%s",
-                        scraper.source,
-                        kind,
-                        checkpoint.offset,
-                        checkpoint.complete,
-                    )
-                    if isinstance(scraper, JikanScraper):
-                        if await enqueue_pending():
-                            return
-                    elif max_items is not None:
-                        remaining = max_items - scheduled
-                        async with sessions() as session:
-                            pending = await ingestion.pending_count(
-                                session, scraper.source, policy, remaining
-                            )
-                        if pending >= remaining:
-                            break
-            # Close the export stream before details: also works with concurrency=1.
-            if await enqueue_pending():
-                return
+        async with sessions() as session:
+            state = await ingestion.checkpoint(session, scraper.source, kind)
+        async with aclosing(scraper.discover(kind, state)) as batches:
+            async for items, checkpoint in batches:
+                # IDs and cursor commit together, before fetching any detail.
+                async with sessions.begin() as session:
+                    await ingestion.discover(session, scraper.source, kind, items, checkpoint)
+                logger.info(
+                    "%s %s discovery: offset=%d complete=%s",
+                    scraper.source,
+                    kind,
+                    checkpoint.offset,
+                    checkpoint.complete,
+                )
+                if isinstance(scraper, JikanScraper):
+                    if await enqueue_pending():
+                        return
+                elif max_items is not None:
+                    remaining = max_items - scheduled
+                    async with sessions() as session:
+                        pending = await ingestion.pending_count(
+                            session, scraper.source, kind, policy, remaining
+                        )
+                    if pending >= remaining:
+                        break
+        # Close this kind's export before details, including with concurrency=1.
+        await enqueue_pending()
 
     async with asyncio.TaskGroup() as group:
         for _ in range(concurrency):
@@ -182,15 +205,22 @@ async def run_source(
     max_items: int | None,
     refresh_after: int | None,
     force: bool,
-) -> Counts:
+) -> Results:
     async with source_lock(engine, source):
-        async with scraper_client(settings, source) as scraper:
-            return await ingest(
-                scraper,
-                sessions,
-                ingestion.Policy(datetime.now(UTC), force, refresh_after),
-                max_items,
-                settings.concurrency,
+        async with source_scrapers(settings, source) as scrapers:
+            policy = ingestion.Policy(datetime.now(UTC), force, refresh_after)
+
+            async def run_kind(kind: Kind, scraper: Scraper) -> tuple[Kind, Counts | str]:
+                try:
+                    return kind, await ingest(
+                        scraper, sessions, policy, kind, max_items, settings.concurrency
+                    )
+                except Exception as error:
+                    logger.error("%s %s ingestion stopped: %s", source, kind, type(error).__name__)
+                    return kind, type(error).__name__
+
+            return dict(
+                await asyncio.gather(*(run_kind(kind, scraper) for kind, scraper in scrapers.items()))
             )
 
 
@@ -206,27 +236,40 @@ async def preview(settings: Settings, engine: AsyncEngine, identity: Identity) -
 async def work(
     settings: Settings, engine: AsyncEngine, sessions: Sessions, source: Source, interval: int
 ) -> None:
-    # Reuse the limiter, but reacquire a fresh DB lock for each pass after outages.
-    async with scraper_client(settings, source) as scraper:
+    async def work_kind(kind: Kind, scraper: Scraper) -> None:
         while True:
             try:
-                async with source_lock(engine, source):
-                    counts = await ingest(
-                        scraper,
-                        sessions,
-                        ingestion.Policy(datetime.now(UTC)),
-                        concurrency=settings.concurrency,
-                    )
-                    logger.info(
-                        "%s pass complete: attempted=%d completed=%d failed=%d",
-                        source,
-                        counts.attempted,
-                        counts.completed,
-                        counts.failed,
-                    )
+                counts = await ingest(
+                    scraper,
+                    sessions,
+                    ingestion.Policy(datetime.now(UTC)),
+                    kind,
+                    concurrency=settings.concurrency,
+                )
+                logger.info(
+                    "%s %s pass complete: attempted=%d completed=%d failed=%d",
+                    source,
+                    kind,
+                    counts.attempted,
+                    counts.completed,
+                    counts.failed,
+                )
             except Exception as error:
-                logger.error("%s pass interrupted: %s", source, type(error).__name__)
+                logger.error("%s %s pass interrupted: %s", source, kind, type(error).__name__)
             await asyncio.sleep(interval)
+
+    while True:
+        try:
+            # Hold the provider lock across both independent loops. A lost lock
+            # connection cancels both before the supervisor reacquires ownership.
+            async with source_lock(engine, source, keepalive_interval=30):
+                async with source_scrapers(settings, source) as scrapers:
+                    async with asyncio.TaskGroup() as group:
+                        for kind, scraper in scrapers.items():
+                            group.create_task(work_kind(kind, scraper), name=f"{source}:{kind}")
+        except Exception as error:
+            logger.error("%s runners interrupted: %s", source, type(error).__name__)
+        await asyncio.sleep(interval)
 
 
 async def import_titles(

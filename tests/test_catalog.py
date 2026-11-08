@@ -1,11 +1,13 @@
+import asyncio
 from datetime import UTC, datetime
 
 import httpx
+import pytest
 from musefy_core.db import titles
 from musefy_core.db.models import TitleRow
 from musefy_core.db.session import Sessions, source_lock
 from musefy_core.schemas import Kind, Metadata, Rating, Source, Title
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from tests.auth_support import create_app
@@ -84,12 +86,29 @@ async def test_api_filters_pagination_and_errors(db: tuple[AsyncEngine, Sessions
 async def test_source_lock_is_exclusive_and_released(db: tuple[AsyncEngine, Sessions]) -> None:
     engine, _ = db
     async with source_lock(engine, Source.TMDB):
-        import pytest
-
         with pytest.raises(RuntimeError, match="already running"):
             async with source_lock(engine, Source.TMDB):
                 raise AssertionError("Must never acquire")
         async with source_lock(engine, Source.JIKAN):
             pass
     async with source_lock(engine, Source.TMDB):
+        pass
+
+
+async def test_monitored_lock_cancels_work_after_connection_loss(db: tuple[AsyncEngine, Sessions]) -> None:
+    engine, _ = db
+
+    async def lose_lock() -> None:
+        async with source_lock(engine, Source.JIKAN, keepalive_interval=0.01):
+            async with engine.begin() as connection:
+                pid = await connection.scalar(
+                    text("SELECT pid FROM pg_locks WHERE locktype = 'advisory' AND objid = 73102 AND granted")
+                )
+                assert pid is not None
+                assert await connection.scalar(text("SELECT pg_terminate_backend(:pid)"), {"pid": pid})
+            await asyncio.Future[None]()
+
+    with pytest.raises(ExceptionGroup):
+        await asyncio.wait_for(lose_lock(), 5)
+    async with source_lock(engine, Source.JIKAN):
         pass

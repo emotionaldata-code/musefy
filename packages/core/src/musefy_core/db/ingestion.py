@@ -77,9 +77,10 @@ async def discover(
     )
 
 
-def candidate_query(source: Source, policy: Policy) -> Select[tuple[JobRow]]:
+def candidate_query(source: Source, kind: Kind, policy: Policy) -> Select[tuple[JobRow]]:
     statement = select(JobRow).where(
         JobRow.source == source.value,
+        JobRow.source_type == kind.value,
         or_(JobRow.attempted_at.is_(None), JobRow.attempted_at < policy.started_at),
     )
     if not policy.force:
@@ -92,13 +93,15 @@ def candidate_query(source: Source, policy: Policy) -> Select[tuple[JobRow]]:
     return statement
 
 
-async def candidates(session: AsyncSession, source: Source, policy: Policy, after: int = 0) -> list[JobRow]:
-    statement = candidate_query(source, policy).where(JobRow.id > after).order_by(JobRow.id).limit(50)
+async def candidates(
+    session: AsyncSession, source: Source, kind: Kind, policy: Policy, after: int = 0
+) -> list[JobRow]:
+    statement = candidate_query(source, kind, policy).where(JobRow.id > after).order_by(JobRow.id).limit(50)
     return list(await session.scalars(statement))
 
 
-async def pending_count(session: AsyncSession, source: Source, policy: Policy, limit: int) -> int:
-    pending = candidate_query(source, policy).limit(limit).subquery()
+async def pending_count(session: AsyncSession, source: Source, kind: Kind, policy: Policy, limit: int) -> int:
+    pending = candidate_query(source, kind, policy).limit(limit).subquery()
     return await session.scalar(select(func.count()).select_from(pending)) or 0
 
 

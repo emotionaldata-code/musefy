@@ -71,13 +71,19 @@ interruzioni. Non usare `down -v`, `freshVolumes` o volumi casuali nei redeploy.
 
 Due servizi nel profilo manuale `ingestion` possono eseguire `musefy worker --source tmdb` e `--source jikan`.
 Il deploy predefinito avvia solo PostgreSQL, migrazioni, API e frontend.
-Ogni fonte ha il proprio processo, limiter e lock PostgreSQL. Una passata percorre
-progressivamente il catalogo senza limite di schede; completata o interrotta,
-attende 3600 secondi prima di ripartire. Il client e il limiter vengono riutilizzati;
+I due processi ospitano **quattro runner async in memoria**, uno per film, serie TV,
+anime e manga. Ogni runner ha client HTTP, slot di concorrenza, coda limitata,
+checkpoint e ciclo di ripartenza propri: nessuno attende il completamento degli altri.
+I due runner dello stesso provider condividono soltanto il limiter e il lock PostgreSQL.
+Una passata percorre progressivamente il catalogo del proprio tipo senza limite di
+schede; completata o interrotta, quel runner attende 3600 secondi prima di ripartire,
+mentre gli altri continuano. Client e limiter vengono riutilizzati;
 checkpoint, step parziali, upsert e skip sono quelli della CLI. Un SIGTERM cancella
 il lavoro async e chiude client/connessioni, permettendo la ripresa dal DB. Nessun
-refresh automatico delle schede complete. Film/TV e anime/manga sono percorsi
-sequenzialmente **all'interno** della fonte; le due fonti avanzano indipendentemente.
+refresh automatico delle schede complete. Il lock resta acquisito durante i cicli
+indipendenti; una verifica della sua connessione ogni 30 secondi rileva le interruzioni
+del DB, cancella i due runner del provider e permette di riacquisire il lock alla
+ripartenza. Gli errori di una singola passata restano isolati al proprio runner.
 Il caricamento iniziale completo richiede tempo e dipende dalla disponibilità remota.
 
 Segreti di produzione configurati a runtime in Dokploy, conservati localmente solo
@@ -247,6 +253,7 @@ docker compose run --rm cli preview --source jikan --type anime --id 1
 docker compose run --rm cli scrape --source all --max-items 20
 docker compose run --rm cli scrape --source tmdb --refresh-after 30
 docker compose run --rm cli scrape --source jikan --force
+docker compose run --rm cli worker --source all --interval 3600
 ```
 
 Consultazione locale del catalogo:
@@ -256,10 +263,18 @@ docker compose run --rm cli list --source tmdb --type movie --year 2020 --genre 
 docker compose run --rm cli get 1
 ```
 
-`--max-items` limita i tentativi di scheda **per fonte**, inclusi i fallimenti;
+`--max-items` limita i tentativi di scheda **per tipo**, inclusi i fallimenti
+(con `all --max-items 20`, fino a 20 film, 20 serie TV, 20 anime e 20 manga);
 la discovery può registrare anticipatamente un batch limitato di ID. Senza limite
-si percorrono i pendenti e una passata del catalogo disponibile. Con `all` le fonti
-hanno worker, code e limiter indipendenti; un errore di una fonte non ferma l'altra.
+si percorrono i pendenti e una passata del catalogo disponibile per ciascun tipo.
+`scrape` esegue una passata per tipo in parallelo; `worker` ripete ciascuna passata
+indipendentemente. Con `--source all` entrambi avviano i quattro runner.
+L'entrypoint è `packages/cli/src/musefy_cli/main.py:execute`; in
+`packages/scraper/src/musefy_scraper/runner.py`, `run_source` orchestra le passate,
+`work` i cicli continui e `ingest` discovery e dettagli di un solo tipo. Le query dei
+pendenti in `packages/core/src/musefy_core/db/ingestion.py` filtrano provider e tipo.
+Il JSON di `scrape` espone contatori o classe di errore per provider e tipo, per
+esempio `{"tmdb":{"movie":{"attempted":1,"completed":1,"failed":0},"tv":…},"jikan":…}`.
 JSON va su stdout, log e avanzamento su stderr. Exit code 1 indica un fallimento
 (o `get` inesistente), 2 argomenti/configurazione invalidi.
 
@@ -383,9 +398,11 @@ upsert della scheda e completamento sono anch'essi atomici. Il vincolo univoco �
   inserimenti/rimozioni durante una passata sono recuperabili nelle successive.
   I manga usano `/manga`, `full` e `characters`; autori e date di pubblicazione
   provengono da `full`. Nessuna chiamata al percorso staff, che non esiste per i manga.
-- Concorrenza limitata, code di dimensione `2 × CONCURRENCY`, nessun task per
+- Concorrenza limitata **per tipo**, code di dimensione `2 × CONCURRENCY`, nessun task per
   l'intero catalogo. TMDB: 10 richieste/s configurabili. Jikan: almeno 1,1 s tra
   richieste, senza burst, più finestra mobile di 60/min (quindi anche sotto 3/s).
+  Questi limiti di frequenza e le pause 429 sono condivisi fra i due tipi dello stesso
+  provider; quattro runner non moltiplicano le richieste/s consentite.
   Timeout espliciti, massimo `HTTP_RETRIES` retry dopo il primo tentativo, backoff
   esponenziale con jitter, `Retry-After` numerico/data HTTP. Un 429 sospende la
   fonte. I 4xx permanenti non sono ritentati nella stessa esecuzione; l'elemento

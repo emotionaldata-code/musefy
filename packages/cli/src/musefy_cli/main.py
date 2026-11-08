@@ -56,8 +56,8 @@ def parser() -> argparse.ArgumentParser:
     scrape.add_argument("--max-items", type=positive)
     scrape.add_argument("--refresh-after", type=positive)
     scrape.add_argument("--force", action="store_true")
-    worker = commands.add_parser("worker", help="Repeat ingestion passes for one source")
-    worker.add_argument("--source", choices=list(Source), required=True)
+    worker = commands.add_parser("worker", help="Repeat independent ingestion passes per catalog kind")
+    worker.add_argument("--source", choices=[*Source, "all"], required=True)
     worker.add_argument("--interval", type=positive, default=3600)
     importing = commands.add_parser("import-titles", help="Import explicit IDs without catalog discovery")
     importing.add_argument("--source", choices=list(Source), required=True)
@@ -118,16 +118,22 @@ async def execute(args: Arguments) -> int:
             print(json.dumps(asdict(counts)))
             return int(counts.failed > 0)
         elif args.command == "worker":
-            await work(settings, engine, sessions, Source(args.source or ""), args.interval)
+            sources = list(Source) if args.source == "all" else [Source(args.source or "")]
+            await asyncio.gather(
+                *(work(settings, engine, sessions, source, args.interval) for source in sources)
+            )
         elif args.command == "scrape":
             sources = list(Source) if args.source == "all" else [Source(args.source or "")]
 
-            async def run(source: Source) -> tuple[str, dict[str, int] | str]:
+            async def run(source: Source) -> tuple[str, dict[str, dict[str, int] | str] | str]:
                 try:
-                    counts = await run_source(
+                    results = await run_source(
                         settings, engine, sessions, source, args.max_items, args.refresh_after, args.force
                     )
-                    return source.value, asdict(counts)
+                    return source.value, {
+                        kind.value: asdict(counts) if not isinstance(counts, str) else counts
+                        for kind, counts in results.items()
+                    }
                 except Exception as error:
                     # Source failure is isolated; never render exception text/credentials.
                     logging.error("%s ingestion stopped: %s", source, type(error).__name__)
@@ -135,7 +141,13 @@ async def execute(args: Arguments) -> int:
 
             results = dict(await asyncio.gather(*(run(source) for source in sources)))
             print(json.dumps(results))
-            return int(any(isinstance(value, str) or value["failed"] > 0 for value in results.values()))
+            return int(
+                any(
+                    isinstance(value, str)
+                    or any(isinstance(counts, str) or counts["failed"] > 0 for counts in value.values())
+                    for value in results.values()
+                )
+            )
         else:
             async with sessions() as session:
                 if args.command == "get":

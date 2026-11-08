@@ -74,7 +74,9 @@ async def test_interruption_resume_failed_step_skip_refresh_and_new_low_id(
     ) as client:
         scraper = JikanScraper(HTTP(client, RateLimit(1.1, 60, clock.time, clock.sleep), retries=0))
         task = asyncio.create_task(
-            ingest(scraper, sessions, ingestion.Policy(datetime.now(UTC)), max_items=1, concurrency=1)
+            ingest(
+                scraper, sessions, ingestion.Policy(datetime.now(UTC)), Kind.ANIME, max_items=1, concurrency=1
+            )
         )
         await asyncio.wait_for(staff_started.wait(), 5)
         task.cancel()
@@ -88,25 +90,36 @@ async def test_interruption_resume_failed_step_skip_refresh_and_new_low_id(
             assert (await ingestion.checkpoint(session, Source.JIKAN, Kind.ANIME)).complete
         mode = "fail"
         result = await ingest(
-            scraper, sessions, ingestion.Policy(datetime.now(UTC)), max_items=1, concurrency=1
+            scraper, sessions, ingestion.Policy(datetime.now(UTC)), Kind.ANIME, max_items=1, concurrency=1
         )
         assert result.failed == 1 and result.completed == 0
         mode = "ok"
-        result = await ingest(scraper, sessions, ingestion.Policy(datetime.now(UTC)), concurrency=1)
+        result = await ingest(
+            scraper, sessions, ingestion.Policy(datetime.now(UTC)), Kind.ANIME, concurrency=1
+        )
         assert result.completed == 2
         assert calls.count("/v4/anime/10/full") == 1
         assert calls.count("/v4/anime/10/characters") == 1
         assert calls.count("/v4/anime/10/staff") == 3
         previous = len(calls)
-        result = await ingest(scraper, sessions, ingestion.Policy(datetime.now(UTC)), concurrency=1)
+        result = await ingest(
+            scraper, sessions, ingestion.Policy(datetime.now(UTC)), Kind.ANIME, concurrency=1
+        )
         assert result.attempted == 0
-        assert calls[previous:] == ["/v4/anime", "/v4/manga"]
+        assert calls[previous:] == ["/v4/anime"]
         ids = [2, 10, 20]
-        result = await ingest(scraper, sessions, ingestion.Policy(datetime.now(UTC)), concurrency=1)
+        result = await ingest(
+            scraper, sessions, ingestion.Policy(datetime.now(UTC)), Kind.ANIME, concurrency=1
+        )
         assert result.completed == 1
         assert calls.count("/v4/anime/2/full") == 1
         result = await ingest(
-            scraper, sessions, ingestion.Policy(datetime.now(UTC), force=True), max_items=1, concurrency=1
+            scraper,
+            sessions,
+            ingestion.Policy(datetime.now(UTC), force=True),
+            Kind.ANIME,
+            max_items=1,
+            concurrency=1,
         )
         assert result.completed == 1
         assert calls.count("/v4/anime/10/full") == 2
@@ -114,13 +127,18 @@ async def test_interruption_resume_failed_step_skip_refresh_and_new_low_id(
         # even though the previous complete title is still available to readers.
         mode = "fail"
         result = await ingest(
-            scraper, sessions, ingestion.Policy(datetime.now(UTC), force=True), max_items=1, concurrency=1
+            scraper,
+            sessions,
+            ingestion.Policy(datetime.now(UTC), force=True),
+            Kind.ANIME,
+            max_items=1,
+            concurrency=1,
         )
         assert result.failed == 1
         full_calls = calls.count("/v4/anime/10/full")
         mode = "ok"
         result = await ingest(
-            scraper, sessions, ingestion.Policy(datetime.now(UTC)), max_items=1, concurrency=1
+            scraper, sessions, ingestion.Policy(datetime.now(UTC)), Kind.ANIME, max_items=1, concurrency=1
         )
         assert result.completed == 1
         assert calls.count("/v4/anime/10/full") == full_calls
@@ -178,7 +196,7 @@ async def test_tmdb_exports_checkpoints_namespaces_and_italian_fallback(
             HTTP(client, RateLimit(0.1, clock=clock.time, sleep=clock.sleep), concurrency=1)
         )
         result = await ingest(
-            scraper, sessions, ingestion.Policy(datetime.now(UTC)), max_items=1, concurrency=1
+            scraper, sessions, ingestion.Policy(datetime.now(UTC)), Kind.MOVIE, max_items=1, concurrency=1
         )
         assert result.completed == 1
         async with sessions() as session:
@@ -194,7 +212,7 @@ async def test_tmdb_exports_checkpoints_namespaces_and_italian_fallback(
             assert title.metadata.staff[0].role == "Screenplay"
         previous = len(requests)
         result = await ingest(
-            scraper, sessions, ingestion.Policy(datetime.now(UTC)), max_items=1, concurrency=1
+            scraper, sessions, ingestion.Policy(datetime.now(UTC)), Kind.MOVIE, max_items=1, concurrency=1
         )
         assert result.completed == 1
         assert all(request.url.host != "files.tmdb.org" for request in requests[previous:])
@@ -204,10 +222,16 @@ async def test_tmdb_exports_checkpoints_namespaces_and_italian_fallback(
             for row in rows:
                 row.status = "complete"
                 row.completed_at = datetime.now(UTC)
-        result = await ingest(scraper, sessions, ingestion.Policy(datetime.now(UTC)), concurrency=1)
-        assert result.completed == 2  # movie 101 and TV 1 have distinct namespaces.
+        result = await ingest(
+            scraper, sessions, ingestion.Policy(datetime.now(UTC)), Kind.MOVIE, concurrency=1
+        )
+        assert result.completed == 1  # movie 101; TV runs independently.
+        result = await ingest(scraper, sessions, ingestion.Policy(datetime.now(UTC)), Kind.TV, concurrency=1)
+        assert result.completed == 1  # TV 1 has a distinct namespace.
         detail_calls = len([request for request in requests if request.url.host != "files.tmdb.org"])
-        result = await ingest(scraper, sessions, ingestion.Policy(datetime.now(UTC)), concurrency=1)
+        result = await ingest(
+            scraper, sessions, ingestion.Policy(datetime.now(UTC)), Kind.MOVIE, concurrency=1
+        )
         assert result.attempted == 0
         assert len([request for request in requests if request.url.host != "files.tmdb.org"]) == detail_calls
 
