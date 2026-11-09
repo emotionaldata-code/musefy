@@ -55,7 +55,9 @@ async def test_targeted_manga_import_resume_skip_and_provenance(
         )
 
         @asynccontextmanager
-        async def factory(settings: Settings, source: Source) -> AsyncIterator[runner.Scraper]:
+        async def factory(
+            settings: Settings, source: Source, limiter: RateLimit | None = None
+        ) -> AsyncIterator[runner.Scraper]:
             assert source == Source.JIKAN
             yield scraper
 

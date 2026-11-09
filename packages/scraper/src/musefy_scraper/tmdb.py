@@ -3,6 +3,7 @@ from collections.abc import AsyncGenerator
 from contextlib import aclosing
 from datetime import UTC, datetime, timedelta
 
+from musefy_core.retrieval_quality import improves_synopsis, synopsis_quality
 from musefy_core.schemas import (
     Checkpoint,
     Credit,
@@ -98,7 +99,7 @@ class TMDBScraper:
         details = obj(progress.steps["details"])
         synopsis = text(details.get("overview"))
         language = "it" if synopsis else None
-        if not synopsis:
+        if synopsis_quality(synopsis, language).needs_healing:
             if "english" not in progress.steps:
                 english = await self.http.get(path, {"language": "en-US"})
                 if required_id(english.get("id")) != identity.source_id:
@@ -106,8 +107,10 @@ class TMDBScraper:
                 progress.steps["english"] = english
                 progress.endpoints.append(path + "?language=en-US")
                 await save(progress)
-            synopsis = text(obj(progress.steps["english"]).get("overview"))
-            language = "en" if synopsis else None
+            english_synopsis = text(obj(progress.steps["english"]).get("overview"))
+            if improves_synopsis(synopsis, english_synopsis):
+                synopsis = english_synopsis
+                language = "en"
         return normalize(identity, details, synopsis, language, progress.endpoints)
 
 

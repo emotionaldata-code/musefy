@@ -12,15 +12,24 @@ from musefy_core.db.session import Sessions, source_lock
 from musefy_core.schemas import Identity, Kind, Progress, Source, Title
 from musefy_core.settings import Settings
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncEngine
+from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 
 from musefy_scraper.http import HTTP, RateLimit
 from musefy_scraper.jikan import JikanScraper
+from musefy_scraper.rate_limits import DistributedRateLimit
 from musefy_scraper.tmdb import TMDBScraper
 
 logger = logging.getLogger(__name__)
 type Scraper = TMDBScraper | JikanScraper
 type Results = dict[Kind, Counts | str]
+
+
+def provider_limiter(settings: Settings, source: Source, sessions: Sessions) -> RateLimit:
+    return (
+        DistributedRateLimit(sessions, source.value, 1 / settings.tmdb_rps)
+        if source == Source.TMDB
+        else RateLimit(settings.jikan_interval, 60)
+    )
 
 
 @dataclass
@@ -66,11 +75,16 @@ async def scraper_client(
 
 
 @asynccontextmanager
-async def source_scrapers(settings: Settings, source: Source) -> AsyncIterator[dict[Kind, Scraper]]:
+async def source_scrapers(
+    settings: Settings, source: Source, limiter: RateLimit | None = None
+) -> AsyncIterator[dict[Kind, Scraper]]:
     # Each kind owns its HTTP slots; only provider-wide request pacing is shared.
-    limiter = (
-        RateLimit(1 / settings.tmdb_rps) if source == Source.TMDB else RateLimit(settings.jikan_interval, 60)
-    )
+    if limiter is None:
+        limiter = (
+            RateLimit(1 / settings.tmdb_rps)
+            if source == Source.TMDB
+            else RateLimit(settings.jikan_interval, 60)
+        )
     kinds = TMDBScraper.kinds if source == Source.TMDB else JikanScraper.kinds
     async with AsyncExitStack() as stack:
         scrapers = {
@@ -207,7 +221,9 @@ async def run_source(
     force: bool,
 ) -> Results:
     async with source_lock(engine, source):
-        async with source_scrapers(settings, source) as scrapers:
+        async with source_scrapers(
+            settings, source, provider_limiter(settings, source, sessions)
+        ) as scrapers:
             policy = ingestion.Policy(datetime.now(UTC), force, refresh_after)
 
             async def run_kind(kind: Kind, scraper: Scraper) -> tuple[Kind, Counts | str]:
@@ -229,7 +245,8 @@ async def preview(settings: Settings, engine: AsyncEngine, identity: Identity) -
         pass
 
     async with source_lock(engine, identity.source):
-        async with scraper_client(settings, identity.source) as scraper:
+        limiter = provider_limiter(settings, identity.source, async_sessionmaker(engine))
+        async with scraper_client(settings, identity.source, limiter) as scraper:
             return await scraper.fetch(identity, Progress(), discard)
 
 
@@ -263,7 +280,9 @@ async def work(
             # Hold the provider lock across both independent loops. A lost lock
             # connection cancels both before the supervisor reacquires ownership.
             async with source_lock(engine, source, keepalive_interval=30):
-                async with source_scrapers(settings, source) as scrapers:
+                async with source_scrapers(
+                    settings, source, provider_limiter(settings, source, sessions)
+                ) as scrapers:
                     async with asyncio.TaskGroup() as group:
                         for kind, scraper in scrapers.items():
                             group.create_task(work_kind(kind, scraper), name=f"{source}:{kind}")
@@ -302,7 +321,8 @@ async def import_titles(
                     .order_by(JobRow.id)
                 )
             )
-        async with scraper_client(settings, source) as scraper:
+        limiter = provider_limiter(settings, source, sessions)
+        async with scraper_client(settings, source, limiter) as scraper:
             for job_id in jobs:
                 await process_item(scraper, sessions, job_id, policy, counts)
     return counts

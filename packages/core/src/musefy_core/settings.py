@@ -7,7 +7,8 @@ class Settings(BaseSettings):
 
     database_url: SecretStr = SecretStr("postgresql+asyncpg://musefy:musefy@localhost:5432/musefy")
     tmdb_read_access_token: SecretStr | None = None
-    tmdb_rps: float = Field(default=10, gt=0)
+    tmdb_rps: float = Field(default=10, gt=0, le=30)
+    tvmaze_rps: float = Field(default=1, gt=0, le=2)
     jikan_base_url: HttpUrl = HttpUrl("https://api.jikan.moe/v4")
     jikan_interval: float = Field(default=1.1, ge=1.1)
     concurrency: int = Field(default=2, ge=1, le=10)

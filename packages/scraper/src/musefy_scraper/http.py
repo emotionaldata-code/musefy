@@ -34,6 +34,9 @@ class RateLimit:
     def pause(self, seconds: float) -> None:
         self.paused_until = max(self.paused_until, self.clock() + seconds)
 
+    async def defer(self, seconds: float) -> None:
+        self.pause(seconds)
+
     async def acquire(self) -> None:
         async with self.lock:
             while True:
@@ -91,7 +94,7 @@ class HTTP:
                     async with self.client.stream("GET", url, params=params) as response:
                         if response.status_code == 429 or response.status_code >= 500:
                             delay = retry_delay(response, attempt)
-                            self.limiter.pause(delay)
+                            await self.limiter.defer(delay)
                             response.raise_for_status()
                         response.raise_for_status()
                         if buffered:
@@ -111,7 +114,7 @@ class HTTP:
                     raise  # Body already yielded: restart at the persisted discovery checkpoint.
                 if attempt == self.retries:
                     raise
-                self.limiter.pause(retry_delay(None, attempt))
+                await self.limiter.defer(retry_delay(None, attempt))
         raise RuntimeError("Unreachable retry state")
 
     async def get(self, url: str, params: dict[str, str] | None = None) -> JSONObject:
