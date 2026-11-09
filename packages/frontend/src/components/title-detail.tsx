@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { TitleCredits } from "@/components/title-credits";
+import { SynopsisAttribution } from "@/components/synopsis-attribution";
 import { Skeleton } from "@/components/ui/skeleton";
 import { categoryName, type Title } from "@/lib/api";
 import { useResource } from "@/lib/use-resource";
@@ -104,6 +105,9 @@ export function TitleDetail({
                   <section className="detail-section">
                     <h3>Sinossi</h3>
                     <p className="synopsis">{metadata.synopsis}</p>
+                    <SynopsisAttribution
+                      enrichment={metadata.synopsis_enrichment}
+                    />
                   </section>
                 )}
                 {!!(

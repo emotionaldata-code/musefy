@@ -550,6 +550,7 @@ export interface components {
             synopsis: string | null;
             /** Synopsis Language */
             synopsis_language: string | null;
+            synopsis_enrichment: components["schemas"]["SynopsisEnrichment"] | null;
             /** Keywords */
             keywords: string[];
             /** Themes */
@@ -644,6 +645,29 @@ export interface components {
             metadata: components["schemas"]["Metadata"];
             /** Id */
             id: number;
+        };
+        /** SynopsisEnrichment */
+        SynopsisEnrichment: {
+            /** Synopsis */
+            synopsis: string;
+            /** Synopsis Language */
+            synopsis_language: string;
+            /**
+             * Provider
+             * @enum {string}
+             */
+            provider: "tmdb" | "tvmaze";
+            /** External Id */
+            external_id: string;
+            /** Endpoint */
+            endpoint: string;
+            /** Url */
+            url: string;
+            /**
+             * Fetched At
+             * Format: date-time
+             */
+            fetched_at: string;
         };
         /** User */
         User: {

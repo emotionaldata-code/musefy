@@ -1,37 +1,38 @@
 import { LoaderCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Poster } from "@/components/title-card";
+import { SynopsisAttribution } from "@/components/synopsis-attribution";
 import { categoryName } from "@/lib/api";
 import type { Exchange, SearchHit } from "@/lib/use-recommendations";
 
 function Recommendation({ hit }: { hit: SearchHit }) {
   const { title } = hit;
   return (
-    <a
-      href={`#title/${title.id}`}
-      aria-label={`Apri ${title.title}`}
-      className="recommendation group"
-    >
-      <Poster
-        title={title}
-        className="w-16 shrink-0 self-start sm:w-20"
-      />
-      <div className="min-w-0 py-0.5">
-        <h3 className="font-semibold leading-snug [overflow-wrap:anywhere] group-hover:underline">
-          {title.title}
-        </h3>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {[categoryName(title.source_type), title.year]
-            .filter(Boolean)
-            .join(" · ")}
-        </p>
-        {title.metadata.synopsis && (
-          <p className="mt-2 line-clamp-3 text-sm leading-relaxed">
-            {title.metadata.synopsis}
+    <article>
+      <a
+        href={`#title/${title.id}`}
+        aria-label={`Apri ${title.title}`}
+        className="recommendation group"
+      >
+        <Poster title={title} className="w-16 shrink-0 self-start sm:w-20" />
+        <div className="min-w-0 py-0.5">
+          <h3 className="font-semibold leading-snug [overflow-wrap:anywhere] group-hover:underline">
+            {title.title}
+          </h3>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {[categoryName(title.source_type), title.year]
+              .filter(Boolean)
+              .join(" · ")}
           </p>
-        )}
-      </div>
-    </a>
+          {title.metadata.synopsis && (
+            <p className="mt-2 line-clamp-3 text-sm leading-relaxed">
+              {title.metadata.synopsis}
+            </p>
+          )}
+        </div>
+      </a>
+      <SynopsisAttribution enrichment={title.metadata.synopsis_enrichment} />
+    </article>
   );
 }
 

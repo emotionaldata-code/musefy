@@ -151,6 +151,21 @@ export function Attribution() {
           This product uses the TMDB API but is not endorsed or certified by TMDB.
         </p>
         <p>Dati MyAnimeList tramite API compatibile Jikan.</p>
+        <p>
+          Sinossi arricchite anche da{" "}
+          <a href="https://www.tvmaze.com/" target="_blank" rel="noreferrer">
+            TVmaze
+          </a>{" "}
+          con licenza{" "}
+          <a
+            href="https://creativecommons.org/licenses/by-sa/4.0/"
+            target="_blank"
+            rel="noreferrer"
+          >
+            CC BY-SA 4.0
+          </a>
+          .
+        </p>
       </div>
     </details>
   );

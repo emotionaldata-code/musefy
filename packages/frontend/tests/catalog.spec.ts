@@ -81,6 +81,36 @@ test("browse continuously, search, details and empty results", async ({
   await expect(page.getByText("31 titoli", { exact: true })).toBeVisible();
 });
 
+test("enriched synopsis links its source and licence", async ({ page }) => {
+  await page.route("**/api/titles/1", (route) =>
+    route.fulfill({
+      json: {
+        ...fixture,
+        metadata: {
+          ...fixture.metadata,
+          synopsis_enrichment: {
+            synopsis: fixture.metadata.synopsis,
+            synopsis_language: "en",
+            provider: "tvmaze",
+            external_id: "4",
+            endpoint: "https://api.tvmaze.com/lookup/shows?imdb=tt123",
+            url: "https://www.tvmaze.com/shows/4",
+            fetched_at: "2026-11-09T12:00:00Z",
+          },
+        },
+      },
+    }),
+  );
+  await page.goto("/#title/1");
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByRole("link", { name: "TVmaze", exact: true })).toHaveAttribute(
+    "href", "https://www.tvmaze.com/shows/4",
+  );
+  await expect(dialog.getByRole("link", { name: "CC BY-SA 4.0" })).toHaveAttribute(
+    "href", "https://creativecommons.org/licenses/by-sa/4.0/",
+  );
+});
+
 test("phone category filters, API error and retry", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/?view=catalog");
