@@ -120,3 +120,44 @@ class UserTitleRow(Base):
     title_id: Mapped[int] = mapped_column(ForeignKey("titles.id", ondelete="CASCADE"), primary_key=True)
     collection: Mapped[str] = mapped_column(String(10), primary_key=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class ListRow(Base):
+    __tablename__ = "community_lists"
+    __table_args__ = (
+        CheckConstraint("length(trim(name)) BETWEEN 1 AND 120", name="ck_community_lists_name"),
+        CheckConstraint("length(description) <= 2000", name="ck_community_lists_description"),
+        Index("ix_community_lists_owner", "owner_id", "updated_at", "id"),
+        Index("ix_community_lists_public", "is_public", "updated_at", "id"),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True)
+    owner_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    name: Mapped[str] = mapped_column(String(120))
+    description: Mapped[str] = mapped_column(String(2000))
+    is_public: Mapped[bool]
+    share_token: Mapped[UUID | None] = mapped_column(Uuid, unique=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class ListItemRow(Base):
+    __tablename__ = "community_list_items"
+    __table_args__ = (Index("ix_community_list_items_order", "list_id", "created_at", "title_id"),)
+
+    list_id: Mapped[UUID] = mapped_column(
+        ForeignKey("community_lists.id", ondelete="CASCADE"), primary_key=True
+    )
+    title_id: Mapped[int] = mapped_column(ForeignKey("titles.id", ondelete="CASCADE"), primary_key=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class ListFollowRow(Base):
+    __tablename__ = "community_list_follows"
+    __table_args__ = (Index("ix_community_list_follows_user", "user_id", "list_id"),)
+
+    list_id: Mapped[UUID] = mapped_column(
+        ForeignKey("community_lists.id", ondelete="CASCADE"), primary_key=True
+    )
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))

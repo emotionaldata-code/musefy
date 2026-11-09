@@ -15,6 +15,7 @@ from musefy_backend.auth import current_user
 from musefy_backend.auth import router as auth_router
 from musefy_backend.dependencies import QueryEmbedder
 from musefy_backend.library import router as library_router
+from musefy_backend.lists import router as lists_router
 from musefy_backend.routes import health_router, router
 from musefy_backend.search import router as search_router
 
@@ -74,6 +75,7 @@ def create_app(
     app.include_router(auth_router)
     app.include_router(router)
     app.include_router(library_router)
+    app.include_router(lists_router)
     app.include_router(search_router)
     return app
 
