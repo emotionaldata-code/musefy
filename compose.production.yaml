@@ -18,6 +18,7 @@ x-worker: &worker
   environment: &scraper
     <<: *database
     TMDB_RPS: ${TMDB_RPS:-10}
+    TVMAZE_RPS: ${TVMAZE_RPS:-1}
     JIKAN_BASE_URL: ${JIKAN_BASE_URL:-https://api.tenrai.org/v1}
     JIKAN_INTERVAL: ${JIKAN_INTERVAL:-1.1}
     CONCURRENCY: ${CONCURRENCY:-2}
@@ -100,6 +101,13 @@ services:
     profiles: [ingestion]
     <<: *worker
     command: [musefy, worker, --source, jikan, --interval, '3600']
+  healer:
+    profiles: [healing]
+    <<: *worker
+    command: [musefy, heal, --watch, --max-items, '1000', --interval, '300']
+    environment:
+      <<: *scraper
+      TMDB_READ_ACCESS_TOKEN: ${TMDB_READ_ACCESS_TOKEN:?Set TMDB_READ_ACCESS_TOKEN}
 
 volumes:
   postgres-data:

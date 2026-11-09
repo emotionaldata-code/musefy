@@ -5,16 +5,19 @@ import logging
 import signal
 import sys
 from dataclasses import asdict
+from pathlib import Path
 
-from musefy_core.db import titles
+from musefy_core.db import embeddings, titles
 from musefy_core.db.session import database
-from musefy_core.embeddings import MODEL_ID, MODEL_REVISION, PROFILE, Embedder
+from musefy_core.embeddings import LEGACY_PROFILE, MODEL_ID, MODEL_REVISION, PROFILE, Embedder
 from musefy_core.schemas import Filters, Identity, Kind, Source
 from musefy_core.settings import Settings
+from musefy_scraper.healer import run_healer
 from musefy_scraper.runner import import_titles, preview, run_source, work
 from pydantic import ValidationError
 
 from musefy_cli.embeddings import follow, populate
+from musefy_cli.retrieval import benchmark
 
 
 class Arguments(argparse.Namespace):
@@ -36,6 +39,9 @@ class Arguments(argparse.Namespace):
     device: str
     threads: int
     watch: bool
+    retry_not_found: bool
+    profile: str
+    queries: Path
 
 
 def positive(value: str) -> int:
@@ -73,7 +79,9 @@ def parser() -> argparse.ArgumentParser:
     listing.add_argument("--q")
     listing.add_argument("--offset", type=int, default=0)
     listing.add_argument("--limit", type=positive, default=20)
-    embed = commands.add_parser("embed", help="Index existing synopses; no scraping")
+    embed = commands.add_parser(
+        "embed", help="Prepare current retrieval documents; keep active profile unchanged"
+    )
     embed.add_argument("--batch-size", type=positive, default=32)
     embed.add_argument("--max-items", type=positive)
     embed.add_argument("--force", action="store_true")
@@ -84,6 +92,22 @@ def parser() -> argparse.ArgumentParser:
     warm = commands.add_parser("embedding-model", help="Download and validate the pinned local model")
     warm.add_argument("--device", choices=["cpu", "cuda"], default="cpu")
     warm.add_argument("--threads", type=positive, default=2)
+    commands.add_parser("embedding-status", help="Show active profile and remaining backfill")
+    activate = commands.add_parser(
+        "embedding-activate", help="Switch profiles after verifying backfill coverage"
+    )
+    activate.add_argument("--profile", choices=["current", "legacy"], default="current")
+    compare = commands.add_parser("embedding-benchmark", help="Compare target HNSW results with exact search")
+    compare.add_argument("--queries", type=Path, required=True)
+    compare.add_argument("--device", choices=["cpu", "cuda"], default="cpu")
+    compare.add_argument("--threads", type=positive, default=2)
+    heal = commands.add_parser("heal", help="Repair sparse TMDB synopses using TMDB and TVmaze")
+    heal.add_argument("--max-items", type=positive, default=100)
+    heal.add_argument(
+        "--retry-not-found", action="store_true", help="Retry negative results before their 30-day expiry"
+    )
+    heal.add_argument("--watch", action="store_true", help="Repeat bounded repair passes until stopped")
+    heal.add_argument("--interval", type=positive, default=3600)
     get = commands.add_parser("get")
     get.add_argument("id", type=positive)
     return root
@@ -93,7 +117,32 @@ async def execute(args: Arguments) -> int:
     settings = Settings()
     engine, sessions = database(settings)
     try:
-        if args.command in {"embed", "embedding-model"}:
+        if args.command in {"embedding-status", "embedding-activate"}:
+            async with sessions.begin() as session:
+                snapshot = (
+                    await embeddings.activate(
+                        session, profile=LEGACY_PROFILE if args.profile == "legacy" else PROFILE
+                    )
+                    if args.command == "embedding-activate"
+                    else await embeddings.status(session)
+                )
+            print(json.dumps(asdict(snapshot)))
+        elif args.command == "embedding-benchmark":
+            embedder = Embedder(device=args.device, threads=args.threads, local_files_only=False)
+            print(json.dumps(asdict(await benchmark(sessions, embedder, args.queries))))
+        elif args.command == "heal":
+            assert args.max_items is not None
+            if args.watch and args.retry_not_found:
+                raise ValueError("--watch cannot be combined with --retry-not-found")
+            while True:
+                healing_counts = await run_healer(
+                    settings, engine, sessions, limit=args.max_items, retry_not_found=args.retry_not_found
+                )
+                print(json.dumps(asdict(healing_counts)), flush=True)
+                if not args.watch:
+                    return int(healing_counts.failed > 0)
+                await asyncio.sleep(args.interval)
+        elif args.command in {"embed", "embedding-model"}:
             if args.command == "embed" and args.watch and (args.force or args.max_items is not None):
                 raise ValueError("--watch cannot be combined with --force or --max-items")
             embedder = Embedder(device=args.device, threads=args.threads, local_files_only=False)

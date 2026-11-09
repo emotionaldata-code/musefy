@@ -29,7 +29,7 @@ curl http://127.0.0.1:8000/health
 
 Usare una password locale URL-safe, oppure codificarla correttamente nella URL
 PostgreSQL. Il token TMDB è un **Read Access Token Bearer**, senza API key aggiuntiva.
-Jikan non richiede credenziali. Le credenziali sono lette a runtime; `.env` è escluso
+Jikan e TVmaze non richiedono credenziali. Le credenziali sono lette a runtime; `.env` è escluso
 da Git e dal contesto Docker. API e migrazioni non ricevono il token TMDB.
 
 Compose avvia PostgreSQL con volume/healthcheck, poi `alembic upgrade head`, poi
@@ -90,7 +90,7 @@ Il caricamento iniziale completo richiede tempo e dipende dalla disponibilità r
 
 Segreti di produzione configurati a runtime in Dokploy, conservati localmente solo
 nel workspace `self-hosting/.secrets/` ignorato da Git. Il token TMDB è passato
-esclusivamente al suo scraper. I log Docker ruotano a 3 file da 10 MB per servizio.
+al suo scraper e al healer opzionale. I log Docker ruotano a 3 file da 10 MB per servizio.
 
 Diagnostica sulla VM (directory di checkout Dokploy):
 
@@ -363,25 +363,48 @@ sessione, Origin e autorizzazione nel backend. Eseguire `alembic upgrade head`.
 
 ## Embeddings e ricerca semantica
 
-Baseline: **una sinossi → un vettore**, richiesta → vettore → cosine similarity in
+Baseline: **un documento di retrieval → un vettore**, richiesta → vettore → cosine similarity in
 PostgreSQL/pgvector. Modello MIT `intfloat/multilingual-e5-small`, revisione fissa
 `614241f622f53c4eeff9890bdc4f31cfecc418b3`, 384 dimensioni; prefissi `passage: ` e
 `query: `, mean pooling con attention mask, normalizzazione L2. Tokenizzazione
 con `truncation=True` a 512 token, inclusi prefisso e token speciali: la coda della
-sinossi può essere persa. Nessun enrichment, reranking o traduzione automatica.
+sinossi può essere persa. Il documento v1 contiene, in ordine, titolo, formato
+(tipo di catalogo e formato provider), generi, temi/keyword e sinossi. Spazi ASCII
+normalizzati; liste ordinate e deduplicate esattamente, temi e keyword uniti.
+Campi assenti omessi; staff, cast, rating, date e altri metadati esclusi.
+Healer separato TMDB/TVmaze per le sinossi scarse; nessun reranking o traduzione automatica.
 
-La migrazione `0ff20b5a3271` abilita `vector` e crea `title_embeddings`, separata dalle
-schede. Memorizza ID del titolo, vettore, fingerprint della configurazione, hash SHA256 della
-sinossi esatta e timestamp. Sinossi vuote escluse. Batch limitati, keyset pagination,
+La tabella precedente `title_embeddings` resta disponibile durante il backfill.
+I nuovi vettori vanno in `title_embedding_profiles`, con chiave titolo/profilo,
+fingerprint della configurazione, hash SHA256 del documento e timestamp.
+Sinossi assenti, placeholder e sole note di stagione/franchise restano escluse;
+le trame brevi informative restano idonee. Batch limitati, keyset pagination,
 commit per batch e upsert idempotente: rilanciare salta ciò che è già corrente.
-Sinossi modificate durante il calcolo non vengono salvate; quelle modificate dopo
-sono escluse dalla ricerca fino al prossimo batch. `--force` ricalcola esplicitamente.
+Documenti modificati durante il calcolo non vengono salvati; quelli modificati dopo
+sono esclusi dalla ricerca fino al prossimo batch. `--force` ricalcola esplicitamente.
 I nuovi titoli acquisiti vengono indicizzati al batch successivo, anche con `--watch`.
 
 `--batch-size` limita il batch DB (default 32, massimo 1024); l’inferenza resta
 suddivisa in blocchi massimi di 128. Da 128 elementi l’upload usa `COPY BINARY`
 su una tabella temporanea e upsert nella stessa transazione, riducendo il traffico
-dei vettori sul tunnel. Il recheck delle sinossi trasferisce solo gli hash.
+dei vettori sul tunnel. La migrazione `f84a31cd297b` aggiunge funzioni SQL v1 e
+`titles.retrieval_hash`, generato e memorizzato da PostgreSQL: ricerca e recheck
+confrontano solo hash, senza ricostruire il documento per ogni candidato.
+Anche idoneità semantica, necessità di healing e filtro sui voti sono flag generati
+e memorizzati: la ricerca non rivaluta regex e rating su ogni candidato.
+Il builder Python `retrieval_document(title)` e quello SQL hanno lo stesso formato.
+
+Rollout: la nuova versione cambia `PROFILE`, mantenendo modello e vettori precedenti.
+`embed` prepara la tabella parallela; l'API resta sul profilo precedente finché
+`musefy embedding-activate` verifica la copertura e committa il passaggio.
+`musefy embedding-status` mostra i pendenti; `embedding-activate --profile legacy`
+permette il rollback. La prima migrazione riscrive `titles` per gli hash esistenti
+con lock esclusivo: pianificare una finestra di manutenzione. Backfill e indice
+HNSW concorrente sono separati dal cambio del profilo attivo.
+Procedura completa, aggiornamento del runtime locale, healer e benchmark:
+[docs/retrieval-rollout.md](docs/retrieval-rollout.md).
+Una modifica futura al formato richiede nuove funzioni SQL e `DOCUMENT_VERSION`;
+non modificare la semantica delle funzioni v1 già installate.
 Per un catalogo ampio: `uv run musefy embed --batch-size 1024 --threads 8`.
 Con una wheel CUDA locale usare `uv run --no-sync musefy embed --device cuda
 --batch-size 1024 --threads 4`: `--no-sync` evita di ripristinare la wheel CPU del lockfile.
@@ -401,8 +424,10 @@ curl -b cookies.txt --get 'http://127.0.0.1:8000/search' \
 `GET /search` accetta `q` (1–200 caratteri non vuoti), `source`, `source_type`, `year`,
 `genre`, `offset` e `limit` (1–100). Risposta `items: [{title, score}], offset, limit`;
 score è cosine similarity, non una probabilità. Ordine per distanza e ID in caso di
-parità. Per ora ricerca esatta, senza indice ANN: misurare la latenza al crescere del
-catalogo prima di aggiungere HNSW. I filtri sono espliciti, non estratti dal testo.
+parità. Il nuovo profilo usa HNSW con scansione iterativa e fallback esatto per
+pagine insufficienti; quello precedente usa la ricerca esatta. Film TMDB con
+media sotto 5 e almeno 100 voti sono esclusi dalle raccomandazioni. I filtri sono
+espliciti, non estratti dal testo.
 
 API: un solo modello lazy condiviso, due thread CPU e inferenza serializzata fuori
 dall’event loop. Non scarica nulla nelle route: usa soltanto la cache locale;
@@ -463,10 +488,10 @@ dopo il logout. Non calcola embeddings sul server e non avvia scraper.
 
 ## Ripresa, aggiornamenti e limiti
 
-Il catalogo usa quattro tabelle, inclusa `title_embeddings` descritta sopra: `titles` con identità/filtri
-e metadati JSONB validati da Pydantic;
+Il catalogo usa `titles` con identità/filtri e metadati JSONB validati da Pydantic;
 `ingestion_items` con ID scoperti e passaggi parziali; `checkpoints` con cursori/versioni.
-Gli account e le sessioni aggiungono le tabelle `users` e `auth_sessions`.
+Embeddings, profilo attivo, coda del healer e pacing HTTP hanno tabelle dedicate.
+Account, sessioni ed elenchi personali restano separati.
 
 ID e checkpoint sono salvati nella stessa transazione prima dei dettagli;
 upsert della scheda e completamento sono anch'essi atomici. Il vincolo univoco è
@@ -480,7 +505,8 @@ upsert della scheda e completamento sono anch'essi atomici. Il vincolo univoco �
   numero di riga persistiti; prima si chiude lo stream, poi si recuperano i dettagli
   dagli ID nel DB (anche con concorrenza 1). Con `--max-items` la discovery si
   ferma quando ha scoperto abbastanza pendenti. Details con append di credits, keyword, titoli
-  alternativi e ID esterni. Sinossi italiana, fallback inglese solo se manca.
+  alternativi e ID esterni. Sinossi italiana, fallback inglese anche se breve/scarsa;
+  si conserva la trama migliore.
   Si usa l'ultimo giorno pubblicato (entro le 08:00 UTC). Per riprendere un gzip
   si rileggono le righe precedenti senza richiederne i dettagli. Export più vecchi
   di 85 giorni vengono sostituiti con uno recente (la fonte li conserva 3 mesi).
@@ -505,9 +531,10 @@ upsert della scheda e completamento sono anch'essi atomici. Il vincolo univoco �
 - Lock advisory PostgreSQL per fonte, anche per preview, con connessione dedicata.
   Coordinano i processi che usano **lo stesso database**; i limiti Jikan possono
   applicarsi anche ad altri utilizzatori dello stesso IP.
-- Nessuna fusione automatica tra fonti, nemmeno per titoli identici: si conservano
+- Nessuna fusione automatica delle schede tra fonti, nemmeno per titoli identici: si conservano
   schede, rating e identificatori esterni separati. Non è implementato un resolver
-  di identità incrociate; nessun dato di un'altra fonte sovrascrive la scheda.
+  di identità incrociate. Il healer conserva la sinossi recuperata da TVmaze in un
+  overlay separato con provenienza, senza sostituire i metadati originali.
   I campi non disponibili restano null/vuoti; la lingua della sinossi Jikan non è
   dichiarata dalla fonte e rimane null. Nessuna traduzione automatica.
 

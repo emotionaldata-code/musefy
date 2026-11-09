@@ -62,6 +62,7 @@ services:
       <<: *environment
       TMDB_READ_ACCESS_TOKEN: ${TMDB_READ_ACCESS_TOKEN:-}
       TMDB_RPS: ${TMDB_RPS:-10}
+      TVMAZE_RPS: ${TVMAZE_RPS:-1}
       JIKAN_BASE_URL: ${JIKAN_BASE_URL:-https://api.jikan.moe/v4}
       JIKAN_INTERVAL: ${JIKAN_INTERVAL:-1.1}
       CONCURRENCY: ${CONCURRENCY:-2}

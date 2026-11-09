@@ -1,0 +1,226 @@
+[
+  {
+    "query": "Un uomo insoddisfatto della vita fonda un club di combattimenti clandestini.",
+    "filters": {
+      "source_type": "movie",
+      "limit": 20
+    }
+  },
+  {
+    "query": "Una realtà simulata nasconde il dominio delle macchine sugli esseri umani.",
+    "filters": {
+      "source_type": "movie",
+      "limit": 20
+    }
+  },
+  {
+    "query": "Un gruppo entra nei sogni delle persone per alterarne le idee.",
+    "filters": {
+      "source_type": "movie",
+      "limit": 20
+    }
+  },
+  {
+    "query": "Viaggio nello spazio per trovare un futuro all’umanità, con un forte legame tra padre e figlia.",
+    "filters": {
+      "source_type": "movie",
+      "limit": 20
+    }
+  },
+  {
+    "query": "Storie intrecciate di criminali e gangster, dialoghi surreali e umorismo nero.",
+    "filters": {
+      "source_type": "movie",
+      "limit": 20
+    }
+  },
+  {
+    "query": "La vita americana attraversata da un uomo ingenuo e dal suo amore di sempre.",
+    "filters": {
+      "source_type": "movie",
+      "limit": 20
+    }
+  },
+  {
+    "query": "Un vigilante affronta un criminale caotico che mette alla prova la morale di una città.",
+    "filters": {
+      "source_type": "movie",
+      "limit": 20
+    }
+  },
+  {
+    "query": "Dramma familiare sulla successione al potere in una famiglia mafiosa.",
+    "filters": {
+      "source_type": "movie",
+      "limit": 20
+    }
+  },
+  {
+    "query": "Un insegnante malato comincia a produrre droga e si trasforma in un criminale.",
+    "filters": {
+      "source_type": "tv",
+      "limit": 20
+    }
+  },
+  {
+    "query": "Famiglie rivali lottano per il trono in un mondo fantasy con draghi.",
+    "filters": {
+      "source_type": "tv",
+      "limit": 20
+    }
+  },
+  {
+    "query": "Ragazzi cercano un amico scomparso e affrontano esperimenti e mostri soprannaturali.",
+    "filters": {
+      "source_type": "tv",
+      "limit": 20
+    }
+  },
+  {
+    "query": "Un boss mafioso cerca di gestire famiglia e affari criminali mentre va in psicoterapia.",
+    "filters": {
+      "source_type": "tv",
+      "limit": 20
+    }
+  },
+  {
+    "query": "Una ragazza sopravvissuta e un uomo attraversano un mondo devastato da un’infezione.",
+    "filters": {
+      "source_type": "tv",
+      "limit": 20
+    }
+  },
+  {
+    "query": "Commedia animata su uno scienziato e suo nipote in avventure tra universi paralleli.",
+    "filters": {
+      "source_type": "tv",
+      "limit": 20
+    }
+  },
+  {
+    "query": "Un gruppo di sopravvissuti deve ricostruire la propria vita durante un’apocalisse zombie.",
+    "filters": {
+      "source_type": "tv",
+      "limit": 20
+    }
+  },
+  {
+    "query": "Un cacciatore di taglie nello spazio protegge un bambino ricercato.",
+    "filters": {
+      "source_type": "tv",
+      "limit": 20
+    }
+  },
+  {
+    "query": "Cacciatori di taglie viaggiano nello spazio, fra passato doloroso e atmosfere noir.",
+    "filters": {
+      "source_type": "anime",
+      "limit": 20
+    }
+  },
+  {
+    "query": "Un giovane ninja emarginato sogna di essere riconosciuto come leader del villaggio.",
+    "filters": {
+      "source_type": "anime",
+      "limit": 20
+    }
+  },
+  {
+    "query": "Un ragazzo cerca un tesoro leggendario viaggiando per mare con una ciurma di pirati.",
+    "filters": {
+      "source_type": "anime",
+      "limit": 20
+    }
+  },
+  {
+    "query": "Uno studente trova un quaderno che permette di uccidere e sfida un investigatore.",
+    "filters": {
+      "source_type": "anime",
+      "limit": 20
+    }
+  },
+  {
+    "query": "L’umanità vive dietro mura per difendersi da giganti che divorano le persone.",
+    "filters": {
+      "source_type": "anime",
+      "limit": 20
+    }
+  },
+  {
+    "query": "Due fratelli alchimisti cercano di recuperare i propri corpi dopo un esperimento proibito.",
+    "filters": {
+      "source_type": "anime",
+      "limit": 20
+    }
+  },
+  {
+    "query": "Un gruppo di amici scopre come inviare messaggi nel passato, con conseguenze pericolose.",
+    "filters": {
+      "source_type": "anime",
+      "limit": 20
+    }
+  },
+  {
+    "query": "Un ragazzo affronta prove e avventure per diventare cacciatore e ritrovare suo padre.",
+    "filters": {
+      "source_type": "anime",
+      "limit": 20
+    }
+  },
+  {
+    "query": "Un guerriero con una grande spada cerca vendetta in un mondo medievale oscuro.",
+    "filters": {
+      "source_type": "manga",
+      "limit": 20
+    }
+  },
+  {
+    "query": "Un ragazzo cerca un tesoro leggendario viaggiando per mare con una ciurma di pirati.",
+    "filters": {
+      "source_type": "manga",
+      "limit": 20
+    }
+  },
+  {
+    "query": "Un giovane ninja emarginato sogna di essere riconosciuto come leader del villaggio.",
+    "filters": {
+      "source_type": "manga",
+      "limit": 20
+    }
+  },
+  {
+    "query": "Uno studente trova un quaderno che permette di uccidere e sfida un investigatore.",
+    "filters": {
+      "source_type": "manga",
+      "limit": 20
+    }
+  },
+  {
+    "query": "Un chirurgo salva un bambino e anni dopo scopre che è diventato un assassino.",
+    "filters": {
+      "source_type": "manga",
+      "limit": 20
+    }
+  },
+  {
+    "query": "Una corsa di cavalli attraverso gli Stati Uniti diventa una battaglia per ottenere misteriose reliquie.",
+    "filters": {
+      "source_type": "manga",
+      "limit": 20
+    }
+  },
+  {
+    "query": "Un eroe sconfigge ogni nemico con un solo pugno e si annoia della propria forza.",
+    "filters": {
+      "source_type": "manga",
+      "limit": 20
+    }
+  },
+  {
+    "query": "Un ragazzo combatte i demoni e cerca una cura per sua sorella trasformata in demone.",
+    "filters": {
+      "source_type": "manga",
+      "limit": 20
+    }
+  }
+]
