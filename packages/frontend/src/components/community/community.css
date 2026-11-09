@@ -1,0 +1,321 @@
+/* Match the app's neutral surfaces and system type; poster columns use the catalog grid. */
+.community-page {
+  min-width: 0;
+}
+.community-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.community-toolbar input {
+  max-width: 480px;
+  height: 44px;
+  background: var(--card);
+  border-color: transparent;
+  padding-inline: 14px;
+}
+.community-toolbar > button {
+  margin-left: auto;
+  min-height: 44px;
+}
+.community-section {
+  margin-top: 28px;
+}
+.community-section > h2,
+.community-section-title {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0 0 12px;
+  line-height: 1.5;
+}
+.community-section > h2 span,
+.community-section-title span {
+  margin-left: 8px;
+  color: var(--faint);
+  font-size: 0.875rem;
+  font-weight: 400;
+}
+.community-list-rows {
+  border-top: 1px solid var(--rule);
+}
+.community-list-row {
+  width: 100%;
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  background: none;
+  color: inherit;
+  border: 0;
+  border-bottom: 1px solid var(--rule);
+  padding: 20px 12px;
+  text-align: left;
+  border-radius: 0;
+  transition: background-color 120ms;
+}
+.community-list-row:hover,
+.community-list-row:active {
+  background: var(--card);
+}
+.community-list-copy {
+  flex: 1;
+  min-width: 0;
+}
+.community-list-row h3 {
+  font-size: 1rem;
+  line-height: 1.4;
+  font-weight: 600;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.community-list-row p {
+  margin: 4px 0 8px;
+  font-size: 0.875rem;
+  color: var(--muted-text);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+.community-list-meta {
+  margin-top: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  font-size: 0.8125rem;
+  color: var(--faint);
+}
+.community-open {
+  font-size: 0.8125rem;
+  color: var(--muted-text);
+  flex-shrink: 0;
+}
+.community-note {
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--muted-text);
+  margin: 8px 0;
+}
+.community-empty,
+.community-status {
+  background: var(--card);
+  padding: 20px;
+  border-radius: var(--radius-control);
+  font-size: 0.875rem;
+}
+.community-empty p,
+.community-status p {
+  margin: 0;
+}
+.community-status button {
+  margin-top: 12px;
+}
+.community-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 20px;
+  font-size: 0.8125rem;
+}
+.community-pagination span {
+  margin-right: auto;
+  color: var(--muted-text);
+}
+.community-back {
+  margin-left: -12px;
+  margin-bottom: 20px;
+}
+.community-detail-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+.community-detail-heading > div:first-child {
+  min-width: 0;
+}
+.community-detail-heading h2 {
+  font-size: 1.375rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.3;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.community-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.community-actions button {
+  min-height: 44px;
+}
+.community-description {
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+  font-size: 0.9375rem;
+  margin: 16px 0;
+  max-width: 75ch;
+}
+.community-share {
+  margin-top: 12px;
+}
+.community-share-link {
+  max-width: 600px;
+  margin-top: 12px;
+}
+.community-share-link label {
+  display: block;
+  font-size: 0.8125rem;
+  margin-bottom: 6px;
+}
+.community-share-link input {
+  height: 40px;
+}
+.community-share-link p {
+  font-size: 0.8125rem;
+  color: var(--muted-text);
+  margin: 6px 0;
+}
+.community-error {
+  color: var(--destructive);
+  font-size: 0.875rem;
+  margin: 12px 0;
+}
+.community-danger-zone {
+  margin-top: 32px;
+}
+.community-delete {
+  color: var(--destructive);
+}
+.community-title {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.community-title .title-card {
+  flex: 1;
+}
+.community-remove {
+  margin-top: 8px;
+  width: 100%;
+  font-size: 0.75rem;
+  padding-inline: 2px;
+  min-height: 44px;
+  white-space: normal;
+}
+.community-dialog {
+  width: calc(100% - 32px);
+  max-width: 480px;
+  max-height: calc(100dvh - 40px);
+  overflow-y: auto;
+  padding: 24px;
+}
+.community-dialog [data-slot="dialog-title"] {
+  padding-right: 32px;
+  line-height: 1.4;
+}
+.community-form {
+  display: grid;
+  gap: 8px;
+}
+.community-form label {
+  margin-top: 8px;
+  font-size: 0.875rem;
+}
+.community-form label span {
+  color: var(--muted-text);
+}
+.community-form input {
+  height: 42px;
+}
+.community-form textarea {
+  display: block;
+  resize: vertical;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  padding: 10px;
+  background: transparent;
+  font: inherit;
+  min-width: 0;
+  width: 100%;
+}
+.community-form .community-actions {
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+.community-search-dialog {
+  max-width: 640px;
+}
+.community-search-dialog > input {
+  height: 44px;
+}
+.community-search-results {
+  min-width: 0;
+}
+.community-search-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--rule);
+}
+.community-search-row .poster {
+  width: 42px;
+  flex-shrink: 0;
+  border-radius: 4px;
+}
+.community-search-row > div:nth-child(2) {
+  min-width: 0;
+  flex: 1;
+}
+.community-search-row p {
+  font-size: 0.875rem;
+  font-weight: 500;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.community-search-row span {
+  font-size: 0.8125rem;
+  color: var(--muted-text);
+}
+.community-search-row button {
+  min-height: 44px;
+}
+@media (max-width: 760px) {
+  .community-detail-heading {
+    flex-direction: column;
+    gap: 12px;
+  }
+  .community-detail-heading > .community-actions {
+    width: 100%;
+  }
+  .community-toolbar {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .community-toolbar input {
+    max-width: none;
+    flex-basis: 100%;
+  }
+  .community-toolbar > button {
+    margin-left: 0;
+  }
+  .community-list-row {
+    padding: 16px 4px;
+    gap: 12px;
+  }
+  .community-list-meta {
+    gap: 4px 10px;
+  }
+  .community-dialog {
+    padding: 20px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .community-list-row {
+    transition: none;
+  }
+}
