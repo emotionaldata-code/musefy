@@ -84,8 +84,8 @@ test("browse continuously, search, details and empty results", async ({
 test("phone category filters, API error and retry", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/?view=catalog");
-  await page.getByRole("button", { name: "Apri menu", exact: true }).click();
-  await page.getByRole("button", { name: "Manga 0" }).click();
+  await page.getByRole("group", { name: "Formato nel catalogo" })
+    .getByRole("button", { name: "Manga", exact: true }).click();
   await expect(page).toHaveURL(/source_type=manga/);
   await expect(
     page.getByRole("heading", { name: "Nessun titolo trovato" }),
@@ -262,7 +262,7 @@ test("a late page cannot contaminate a new category", async ({ page }) => {
     .getByRole("link", { name: "Apri Titolo 15", exact: true })
     .scrollIntoViewIfNeeded();
   await expect.poll(() => requested).toBe(true);
-  await page.getByRole("button", { name: "Manga 0", exact: true }).click();
+  await page.getByRole("group", { name: "Formato nel catalogo" }).getByRole("button", { name: "Manga", exact: true }).click();
   release();
   await expect(
     page.getByRole("heading", { name: "Nessun titolo trovato" }),
@@ -332,11 +332,7 @@ for (const width of [1440, 390]) {
       );
       expect(await frame()).toEqual(before);
     }
-    if (width <= 1000)
-      await page
-        .getByRole("button", { name: "Apri menu", exact: true })
-        .click();
-    await page.getByRole("button", { name: "Manga 0", exact: true }).click();
+    await page.getByRole("group", { name: "Formato nel catalogo" }).getByRole("button", { name: "Manga", exact: true }).click();
     await expect(
       page.getByRole("heading", { name: "Nessun titolo trovato" }),
     ).toBeVisible();

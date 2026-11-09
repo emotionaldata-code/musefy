@@ -9,7 +9,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { CatalogQuery, Facets } from "@/lib/api";
+import { categories, type CatalogQuery, type Facets } from "@/lib/api";
+import "./catalog-toolbar.css";
 
 interface FilterOption {
   value: string;
@@ -125,6 +126,19 @@ export function CatalogToolbar({
         >
           <RefreshCw aria-hidden="true" />
         </Button>
+      </div>
+      <div className="catalog-formats" role="group" aria-label="Formato nel catalogo">
+        {categories.map(({ value, label }) => (
+          <Button
+            key={value}
+            variant="ghost"
+            className="catalog-format"
+            aria-pressed={query.source_type === value}
+            onClick={() => onFilter({ source_type: value })}
+          >
+            {value ? label : "Tutti"}
+          </Button>
+        ))}
       </div>
       <div className="catalog-filters">
         <CatalogFilter

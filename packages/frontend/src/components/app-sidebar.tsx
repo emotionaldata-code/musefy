@@ -1,40 +1,27 @@
 import {
-  BookOpen,
   Bookmark,
   Check,
-  Clapperboard,
   ExternalLink,
-  Film,
   Layers,
+  List,
+  Compass,
   MessageCircle,
-  Tv,
   X,
   type LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Brand } from "@/components/brand";
-import {
-  categories,
-  docsURL,
-  type AppView,
-  type Collection,
-  type CatalogQuery,
-  type Facets,
-} from "@/lib/api";
-
-const icons = [Layers, Film, Tv, Clapperboard, BookOpen];
+import { docsURL, type AppView } from "@/lib/api";
 
 function NavigationItem({
   active,
   Icon,
   label,
-  count,
   onClick,
 }: {
   active: boolean;
   Icon: LucideIcon;
   label: string;
-  count?: number | null;
   onClick: () => void;
 }) {
   return (
@@ -46,34 +33,21 @@ function NavigationItem({
     >
       <Icon size={18} strokeWidth={1.5} aria-hidden="true" />
       <span>{label}</span>
-      {count !== undefined && (
-        <span className="nav-count">{count?.toLocaleString("it-IT") ?? "—"}</span>
-      )}
     </Button>
   );
 }
 
 type SidebarProps = {
   view: AppView;
-  query: CatalogQuery;
-  facets: Facets | null;
-  onNavigate: (type: string | null) => void;
-  onCollection: (collection: Collection) => void;
+  onNavigate: (view: AppView) => void;
   onClose?: () => void;
 };
 
 export function SidebarContent({
   view,
-  query,
-  facets,
   onNavigate,
-  onCollection,
   onClose,
 }: SidebarProps) {
-  const total = Object.values(facets?.counts ?? {}).reduce(
-    (sum, count) => sum + (count ?? 0),
-    0,
-  );
   return (
     <>
       <div className="flex shrink-0 items-center justify-between gap-3">
@@ -83,7 +57,7 @@ export function SidebarContent({
           aria-label="Musefy, chat"
           onClick={(event) => {
             event.preventDefault();
-            onNavigate(null);
+            onNavigate("chat");
           }}
         >
           <Brand />
@@ -105,27 +79,15 @@ export function SidebarContent({
             active={view === "chat"}
             Icon={MessageCircle}
             label="Musefy"
-            onClick={() => onNavigate(null)}
+            onClick={() => onNavigate("chat")}
           />
           <div className="nav-label">Esplora il catalogo</div>
-          {categories.map((category, index) => {
-            const Icon = icons[index];
-            const active =
-              view === "catalog" && query.source_type === category.value;
-            const count = category.value
-              ? (facets?.counts[category.value] ?? 0)
-              : total;
-            return (
-              <NavigationItem
-                key={category.value}
-                active={active}
-                Icon={Icon}
-                label={category.label}
-                count={facets ? count : null}
-                onClick={() => onNavigate(category.value)}
-              />
-            );
-          })}
+          <NavigationItem
+            active={view === "catalog"}
+            Icon={Layers}
+            label="Esplora"
+            onClick={() => onNavigate("catalog")}
+          />
         </nav>
         <nav
           className="sidebar-nav sidebar-library"
@@ -143,9 +105,24 @@ export function SidebarContent({
               active={view === value}
               Icon={Icon}
               label={label}
-              onClick={() => onCollection(value)}
+              onClick={() => onNavigate(value)}
             />
           ))}
+        </nav>
+        <nav className="sidebar-nav sidebar-library" aria-label="Community">
+          <div className="nav-label">Community</div>
+          <NavigationItem
+            active={view === "lists"}
+            Icon={List}
+            label="Le tue liste"
+            onClick={() => onNavigate("lists")}
+          />
+          <NavigationItem
+            active={view === "discover"}
+            Icon={Compass}
+            label="Scopri liste"
+            onClick={() => onNavigate("discover")}
+          />
         </nav>
         <div className="sidebar-bottom">
           <Attribution />

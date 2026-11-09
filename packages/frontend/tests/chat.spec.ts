@@ -348,6 +348,13 @@ test("sidebar adapts without losing recommendations", async ({ page }) => {
   await expect(
     page.locator(".chat-message-assistant").getByRole("link"),
   ).toHaveCount(2);
+  await page.getByRole("navigation", { name: "Community" })
+    .getByRole("button", { name: "Le tue liste", exact: true }).click();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Le tue liste");
+  await page.getByRole("navigation", { name: "Navigazione principale" })
+    .getByRole("button", { name: "Musefy", exact: true }).click();
+  await expect(page.locator(".chat-message-user")).toContainText("Resta qui");
+  await expect(page.locator(".chat-message-assistant").getByRole("link")).toHaveCount(2);
 });
 
 test("a new search cancels pending results without reviving the old conversation", async ({

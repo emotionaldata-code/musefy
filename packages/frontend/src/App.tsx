@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { PanelLeft } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Menu } from "lucide-react";
 import { Attribution, SidebarContent } from "@/components/app-sidebar";
 import { useMobile } from "@/lib/use-mobile";
 import {
@@ -17,31 +17,83 @@ import {
 import { Button } from "@/components/ui/button";
 import { CatalogToolbar } from "@/components/catalog-toolbar";
 import { CatalogResults } from "@/components/catalog-results";
+import { CommunityPage } from "@/components/community-page";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { AccountMenu } from "@/components/account-menu";
 import { Login } from "@/components/login";
 import { useAuth } from "@/lib/use-auth";
 import { TitleDetail } from "@/components/title-detail";
 import {
-  categories,
   titlesPath,
   type CatalogQuery,
   type Facets,
   type AppView,
-  type Collection,
 } from "@/lib/api";
 import { useResource } from "@/lib/use-resource";
 import { LibraryProvider, useLibrary } from "@/lib/use-library";
 
-const initialParams = new URLSearchParams(window.location.search);
-initialParams.delete("auth_error");
-const initialQuery: CatalogQuery = {
-  q: initialParams.get("q") ?? "",
-  source: initialParams.get("source") ?? "",
-  source_type: initialParams.get("source_type") ?? "",
-  year: initialParams.get("year") ?? "",
-  genre: initialParams.get("genre") ?? "",
+const emptyQuery: CatalogQuery = {
+  q: "",
+  source: "",
+  source_type: "",
+  year: "",
+  genre: "",
 };
+
+type Route = {
+  view: AppView;
+  listId: string | null;
+  shareToken: string | null;
+};
+
+function readLocation(): { route: Route; query: CatalogQuery } {
+  const params = new URLSearchParams(window.location.search);
+  params.delete("auth_error");
+  const requested = params.get("view");
+  const view: AppView =
+    requested === "chat" ||
+    requested === "catalog" ||
+    requested === "wishlist" ||
+    requested === "watched" ||
+    requested === "lists" ||
+    requested === "discover"
+      ? requested
+      : params.size || window.location.hash
+        ? "catalog"
+        : "chat";
+  const community = view === "lists" || view === "discover";
+  return {
+    route: {
+      view,
+      listId: community ? params.get("list") : null,
+      shareToken: community ? params.get("share") : null,
+    },
+    query: {
+      q: params.get("q") ?? "",
+      source: params.get("source") ?? "",
+      source_type: params.get("source_type") ?? "",
+      year: params.get("year") ?? "",
+      genre: params.get("genre") ?? "",
+    },
+  };
+}
+
+function routeURL(route: Route, query: CatalogQuery, hash = window.location.hash) {
+  const params = new URLSearchParams();
+  if (route.view !== "chat") {
+    params.set("view", route.view);
+    if (route.view === "lists" || route.view === "discover") {
+      if (route.listId) params.set("list", route.listId);
+      if (route.shareToken) params.set("share", route.shareToken);
+    } else {
+      Object.entries(query).forEach(([key, value]) => {
+        if (value !== "") params.set(key, value);
+      });
+    }
+  }
+  return `${window.location.pathname}${params.size ? `?${params}` : ""}${hash}`;
+}
+
 function selectedId(): number | null {
   const match = /^#title\/(\d+)$/.exec(window.location.hash);
   return match ? Number(match[1]) : null;
@@ -63,15 +115,11 @@ function AuthenticatedApp({
 }: {
   auth: ReturnType<typeof useAuth> & { status: "authenticated" };
 }) {
-  const [view, setView] = useState<AppView>(
-    initialParams.get("view") === "wishlist"
-      ? "wishlist"
-      : initialParams.get("view") === "watched"
-        ? "watched"
-        : initialParams.size || window.location.hash
-          ? "catalog"
-          : "chat",
-  );
+  const [initial] = useState(readLocation);
+  const [route, setRoute] = useState(initial.route);
+  const locationPath = useRef(`${window.location.pathname}${window.location.search}`);
+  const { view, listId, shareToken } = route;
+  const community = view === "lists" || view === "discover";
   const library = useLibrary();
   const collection =
     view === "watched" || view === "wishlist" ? view : undefined;
@@ -83,18 +131,23 @@ function AuthenticatedApp({
     window.addEventListener("resize", closeMenu);
     return () => window.removeEventListener("resize", closeMenu);
   }, []);
-  const [query, setQuery] = useState(initialQuery);
-  const [search, setSearch] = useState(initialQuery.q);
+  const [query, setQuery] = useState(initial.query);
+  const [search, setSearch] = useState(initial.query.q);
   const [revision, setRevision] = useState(0);
   const [id, setId] = useState(selectedId);
   const { data: facets } = useResource<Facets>("/titles/facets", revision);
   const heading =
-    collection === "wishlist"
-      ? "Guarda più tardi"
-      : collection === "watched"
-        ? "Già visti"
-        : (categories.find((category) => category.value === query.source_type)
-            ?.label ?? "Catalogo");
+    view === "chat"
+      ? "Musefy"
+      : view === "wishlist"
+        ? "Guarda più tardi"
+        : view === "watched"
+          ? "Già visti"
+          : view === "lists"
+            ? "Le tue liste"
+            : view === "discover"
+              ? "Scopri liste"
+              : "Esplora";
 
   function update(patch: Partial<CatalogQuery>) {
     setQuery((current) => ({
@@ -104,14 +157,7 @@ function AuthenticatedApp({
   }
   function reset() {
     setSearch("");
-    setQuery({
-      ...initialQuery,
-      q: "",
-      source: "",
-      source_type: "",
-      year: "",
-      genre: "",
-    });
+    setQuery(emptyQuery);
   }
   useEffect(() => {
     const timer = window.setTimeout(
@@ -125,19 +171,24 @@ function AuthenticatedApp({
   }, [search]);
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "instant" });
-    const params = new URLSearchParams();
-    if (view !== "chat") {
-      params.set("view", view);
-      Object.entries(query).forEach(([key, value]) => {
-        if (value !== "") params.set(key, String(value));
-      });
-    }
-    window.history.replaceState(
-      null,
-      "",
-      `${window.location.pathname}${params.size ? `?${params}` : ""}${window.location.hash}`,
-    );
-  }, [query, view]);
+    window.history.replaceState(null, "", routeURL(route, query));
+    locationPath.current = `${window.location.pathname}${window.location.search}`;
+  }, [query, route]);
+  useEffect(() => {
+    const changed = () => {
+      setId(selectedId());
+      const path = `${window.location.pathname}${window.location.search}`;
+      if (path === locationPath.current) return;
+      locationPath.current = path;
+      const next = readLocation();
+      setRoute(next.route);
+      setQuery(next.query);
+      setSearch(next.query.q);
+      setMobileOpen(false);
+    };
+    window.addEventListener("popstate", changed);
+    return () => window.removeEventListener("popstate", changed);
+  }, []);
   useEffect(() => {
     const changed = () => setId(selectedId());
     window.addEventListener("hashchange", changed);
@@ -152,16 +203,28 @@ function AuthenticatedApp({
     setId(null);
   }
 
-  function navigate(type: string | null) {
-    setView(type === null ? "chat" : "catalog");
-    if (type !== null) update({ source_type: type });
+  function navigate(next: AppView) {
+    const nextRoute: Route = { view: next, listId: null, shareToken: null };
+    const nextQuery =
+      next === "wishlist" || next === "watched" ? emptyQuery : query;
+    const url = routeURL(nextRoute, nextQuery, "");
+    if (
+      url !== `${window.location.pathname}${window.location.search}${window.location.hash}`
+    ) window.history.pushState(null, "", url);
+    if (nextQuery === emptyQuery) reset();
+    setRoute(nextRoute);
+    setId(null);
     setMobileOpen(false);
   }
 
-  function navigateCollection(next: Collection) {
-    reset();
-    setView(next);
-    setMobileOpen(false);
+  function selectList(nextId: string | null, token?: string) {
+    const nextRoute = { ...route, listId: nextId, shareToken: token ?? null };
+    const url = routeURL(nextRoute, query, "");
+    if (
+      url !== `${window.location.pathname}${window.location.search}${window.location.hash}`
+    ) window.history.pushState(null, "", url);
+    setRoute(nextRoute);
+    setId(null);
   }
 
   return (
@@ -181,23 +244,14 @@ function AuthenticatedApp({
             <SheetTitle className="sr-only">Navigazione Musefy</SheetTitle>
             <SidebarContent
               view={view}
-              query={query}
-              facets={facets}
               onNavigate={navigate}
-              onCollection={navigateCollection}
               onClose={() => setMobileOpen(false)}
             />
           </SheetContent>
         ) : (
           <CollapsibleContent asChild>
             <aside className="sidebar" id="app-sidebar">
-              <SidebarContent
-                view={view}
-                query={query}
-                facets={facets}
-                onNavigate={navigate}
-                onCollection={navigateCollection}
-              />
+              <SidebarContent view={view} onNavigate={navigate} />
             </aside>
           </CollapsibleContent>
         )}
@@ -213,7 +267,7 @@ function AuthenticatedApp({
                       aria-label="Apri menu"
                       title="Apri menu"
                     >
-                      <PanelLeft aria-hidden="true" />
+                      <Menu aria-hidden="true" />
                     </Button>
                   </SheetTrigger>
                 ) : (
@@ -222,15 +276,15 @@ function AuthenticatedApp({
                       variant="ghost"
                       size="icon"
                       aria-label={
-                        sidebarOpen ? "Chiudi sidebar" : "Apri sidebar"
+                        sidebarOpen ? "Chiudi menu" : "Apri menu"
                       }
-                      title={sidebarOpen ? "Chiudi sidebar" : "Apri sidebar"}
+                      title={sidebarOpen ? "Chiudi menu" : "Apri menu"}
                     >
-                      <PanelLeft aria-hidden="true" />
+                      <Menu aria-hidden="true" />
                     </Button>
                   </CollapsibleTrigger>
                 )}
-                <h1>{view === "chat" ? "Musefy" : heading}</h1>
+                <h1>{heading}</h1>
               </div>
               <div className="heading-actions">
                 <ThemeToggle />
@@ -243,7 +297,16 @@ function AuthenticatedApp({
               </div>
             </div>
             <Chat active={view === "chat"} />
-            {view !== "chat" && (
+            {community && (
+              <CommunityPage
+                view={view}
+                userId={auth.user.id}
+                listId={listId}
+                shareToken={shareToken}
+                onSelect={selectList}
+              />
+            )}
+            {view !== "chat" && !community && (
               <>
                 <CatalogToolbar
                   query={query}
