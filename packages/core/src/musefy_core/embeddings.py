@@ -6,6 +6,7 @@ import asyncio
 import hashlib
 import json
 import math
+import re
 from collections.abc import Callable, Mapping
 from functools import partial
 from typing import TYPE_CHECKING, Protocol, cast
@@ -13,13 +14,19 @@ from typing import TYPE_CHECKING, Protocol, cast
 if TYPE_CHECKING:
     from torch import Tensor
 
+    from musefy_core.schemas import Title
+
 MODEL_ID = "intfloat/multilingual-e5-small"
 MODEL_REVISION = "614241f622f53c4eeff9890bdc4f31cfecc418b3"
 DIMENSIONS = 384
 MAX_TOKENS = 512
+DOCUMENT_VERSION = 1
+# Original synopsis-only profile retained until explicit document-profile activation.
+LEGACY_PROFILE = "c321dd0d930cca7afa6502357d0d07eca301337da49b12c99730199bbe44d449"
 PROFILE = hashlib.sha256(
     json.dumps(
         {
+            "document_version": DOCUMENT_VERSION,
             "model": MODEL_ID,
             "revision": MODEL_REVISION,
             "dimensions": DIMENSIONS,
@@ -37,8 +44,32 @@ PROFILE = hashlib.sha256(
 type Encode = Callable[[list[str]], list[list[float]]]
 
 
-def input_hash(synopsis: str) -> str:
-    return hashlib.sha256(synopsis.encode()).hexdigest()
+def retrieval_document(title: Title) -> str:
+    """Canonical v1 passage; mirrored by musefy_retrieval_document_v1 in PostgreSQL.
+
+    ASCII whitespace is collapsed; list terms are deduplicated exactly and sorted
+    by UTF-8 bytes (PostgreSQL COLLATE "C"). Only these selected fields affect freshness.
+    """
+
+    def clean(value: str) -> str:
+        return re.sub(r"[ \t\n\r\f\v]+", " ", value).strip(" ")
+
+    def terms(values: list[str]) -> str:
+        return "; ".join(sorted({clean(value) for value in values} - {""}, key=str.encode))
+
+    metadata = title.metadata
+    fields = (
+        ("Title", clean(title.title)),
+        ("Format", terms([title.source_type, metadata.format or ""])),
+        ("Genres", terms(title.genres)),
+        ("Themes / keywords", terms([*metadata.themes, *metadata.keywords])),
+        ("Synopsis", clean(metadata.synopsis or "")),
+    )
+    return "\n".join(f"{label}: {value}" for label, value in fields if value)
+
+
+def input_hash(document: str) -> str:
+    return hashlib.sha256(document.encode()).hexdigest()
 
 
 def validate_vectors(vectors: list[list[float]], count: int) -> None:

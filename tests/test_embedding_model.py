@@ -3,7 +3,10 @@ import hashlib
 import threading
 
 import pytest
-from musefy_core.embeddings import DIMENSIONS, Embedder, Encode, input_hash
+from musefy_core.embeddings import DIMENSIONS, Embedder, Encode, input_hash, retrieval_document
+from musefy_core.schemas import Credit, Metadata
+
+from tests.test_catalog import example
 
 
 def vector() -> list[float]:
@@ -74,3 +77,37 @@ async def test_rejects_invalid_inputs_and_backend_vectors() -> None:
         await embedder.embed_query("valid text")
     with pytest.raises(ValueError, match="positive"):
         Embedder(threads=0)
+
+
+def test_retrieval_document_selected_fields_and_canonical_terms() -> None:
+    title = example()
+    title.title = "  Una\tstoria\n "
+    title.genres = [" Drama ", "Sci-Fi", "Drama", "", "\t", "Émotion", "東京"]
+    title.metadata = Metadata(
+        format=" Movie\r\n special ",
+        themes=[" Time\v travel ", "Drama", "Time travel"],
+        keywords=["Drama", "Memory", ""],
+        synopsis=" A\f story\r\nwith\tmemories. ",
+    )
+    assert retrieval_document(title) == (
+        "Title: Una storia\n"
+        "Format: Movie special; movie\n"
+        "Genres: Drama; Sci-Fi; Émotion; 東京\n"
+        "Themes / keywords: Drama; Memory; Time travel\n"
+        "Synopsis: A story with memories."
+    )
+    before = retrieval_document(title)
+    title.genres.reverse()
+    title.metadata.themes = ["Memory", "Time travel"]
+    title.metadata.keywords = ["Drama", "Drama"]
+    title.metadata.staff = [Credit(name="Someone")]
+    title.metadata.original_title = "Ignored"
+    title.year = 1990
+    assert retrieval_document(title) == before
+
+
+def test_retrieval_document_omits_absent_optional_fields() -> None:
+    title = example()
+    title.genres = []
+    title.metadata = Metadata()
+    assert retrieval_document(title) == "Title: Una storia\nFormat: movie"

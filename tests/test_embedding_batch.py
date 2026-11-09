@@ -4,7 +4,7 @@ import pytest
 from musefy_cli.embeddings import follow, populate
 from musefy_core.db import titles
 from musefy_core.db.session import Sessions
-from musefy_core.embeddings import Embedder
+from musefy_core.embeddings import Embedder, retrieval_document
 from musefy_core.schemas import Metadata
 from sqlalchemy.ext.asyncio import AsyncEngine
 
@@ -39,7 +39,13 @@ async def test_batch_commits_resume_and_skip_without_loading_model(db: tuple[Asy
 
     stats = await populate(sessions, Embedder(factory=lambda: encode), batch_size=1)
     assert (stats.processed, stats.embedded, stats.batches) == (2, 2, 2)
-    assert calls == [["passage: Sinossi 2"], ["passage: Sinossi 3"]]
+
+    def passage(source_id: int) -> str:
+        title = example(source_id=source_id)
+        title.metadata.synopsis = f"Sinossi {source_id}"
+        return "passage: " + retrieval_document(title)
+
+    assert calls == [[passage(2)], [passage(3)]]
 
     def forbidden() -> Never:
         raise AssertionError("No model loading when all embeddings are current")
@@ -49,7 +55,7 @@ async def test_batch_commits_resume_and_skip_without_loading_model(db: tuple[Asy
     calls.clear()
     stats = await populate(sessions, Embedder(factory=lambda: encode), force=True, max_items=2, batch_size=1)
     assert stats.processed == stats.embedded == 2
-    assert calls == [["passage: Sinossi 1"], ["passage: Sinossi 2"]]
+    assert calls == [[passage(1)], [passage(2)]]
 
 
 async def test_batch_rejects_unbounded_or_invalid_sizes() -> None:

@@ -4,7 +4,9 @@ from uuid import UUID
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
     BigInteger,
+    Boolean,
     CheckConstraint,
+    Computed,
     DateTime,
     ForeignKey,
     Index,
@@ -12,6 +14,8 @@ from sqlalchemy import (
     String,
     UniqueConstraint,
     Uuid,
+    func,
+    text,
 )
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
@@ -46,6 +50,38 @@ class TitleRow(Base):
     genres: Mapped[list[str]] = mapped_column(ARRAY(String))
     fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     details: Mapped[JSONObject] = mapped_column(JSONB)
+    synopsis_enrichment: Mapped[JSONObject] = mapped_column(JSONB, server_default=text("'{}'::jsonb"))
+    retrieval_hash: Mapped[str] = mapped_column(
+        String(64),
+        Computed(
+            "musefy_retrieval_hash_v1(title, source_type, genres, musefy_effective_details_v1(details, synopsis_enrichment))",
+            persisted=True,
+        ),
+    )
+    semantic_eligible: Mapped[bool] = mapped_column(
+        Boolean,
+        Computed(
+            "musefy_synopsis_eligible_v1(musefy_effective_details_v1(details, synopsis_enrichment)->>'synopsis')",
+            persisted=True,
+        ),
+    )
+    needs_healing: Mapped[bool] = mapped_column(
+        Boolean,
+        Computed(
+            "musefy_synopsis_needs_healing_v1("
+            "musefy_effective_details_v1(details, synopsis_enrichment)->>'synopsis', "
+            "musefy_effective_details_v1(details, synopsis_enrichment)->>'synopsis_language')",
+            persisted=True,
+        ),
+    )
+    recommendation_eligible: Mapped[bool] = mapped_column(
+        Boolean,
+        Computed(
+            "musefy_recommendation_eligible_v1(source, source_type, "
+            "musefy_effective_details_v1(details, synopsis_enrichment))",
+            persisted=True,
+        ),
+    )
 
 
 class JobRow(Base):
@@ -79,7 +115,7 @@ class CheckpointRow(Base):
     state: Mapped[JSONObject] = mapped_column(JSONB)
 
 
-class EmbeddingRow(Base):
+class LegacyEmbeddingRow(Base):
     __tablename__ = "title_embeddings"
 
     title_id: Mapped[int] = mapped_column(ForeignKey("titles.id", ondelete="CASCADE"), primary_key=True)
@@ -87,6 +123,33 @@ class EmbeddingRow(Base):
     profile: Mapped[str] = mapped_column(String)
     input_hash: Mapped[str] = mapped_column(String(64))
     embedded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class EmbeddingRow(Base):
+    __tablename__ = "title_embedding_profiles"
+    __table_args__ = (
+        Index(
+            "ix_embedding_profiles_hnsw",
+            "embedding",
+            postgresql_using="hnsw",
+            postgresql_ops={"embedding": "vector_cosine_ops"},
+            postgresql_with={"m": 16, "ef_construction": 128},
+        ),
+    )
+
+    title_id: Mapped[int] = mapped_column(ForeignKey("titles.id", ondelete="CASCADE"), primary_key=True)
+    profile: Mapped[str] = mapped_column(String, primary_key=True)
+    embedding: Mapped[list[float]] = mapped_column(Vector(DIMENSIONS))
+    input_hash: Mapped[str] = mapped_column(String(64))
+    embedded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class EmbeddingStateRow(Base):
+    __tablename__ = "embedding_state"
+    __table_args__ = (CheckConstraint("id = 1", name="ck_embedding_state_singleton"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    active_profile: Mapped[str] = mapped_column(String)
 
 
 class UserRow(Base):
@@ -161,3 +224,11 @@ class ListFollowRow(Base):
     )
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class ProviderLimitRow(Base):
+    __tablename__ = "provider_http_limits"
+
+    provider: Mapped[str] = mapped_column(String(10), primary_key=True)
+    next_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    paused_until: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

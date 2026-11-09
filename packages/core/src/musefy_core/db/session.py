@@ -17,16 +17,15 @@ def database(settings: Settings) -> tuple[AsyncEngine, Sessions]:
 
 
 @asynccontextmanager
-async def source_lock(
-    engine: AsyncEngine, source: Source, *, keepalive_interval: float | None = None
+async def advisory_lock(
+    engine: AsyncEngine, key: int, *, label: str, keepalive_interval: float | None = None
 ) -> AsyncIterator[None]:
     # Dedicated connection: session advisory locks survive individual transactions.
-    key = 73101 if source == Source.TMDB else 73102
     async with engine.connect() as connection:
         locked = await connection.scalar(text("SELECT pg_try_advisory_lock(:key)"), {"key": key})
         await connection.commit()
         if not locked:
-            raise RuntimeError(f"Ingestion/preview already running for {source}")
+            raise RuntimeError(label)
 
         async def keepalive() -> None:
             assert keepalive_interval is not None
@@ -49,3 +48,16 @@ async def source_lock(
             if not connection.invalidated:
                 await connection.execute(text("SELECT pg_advisory_unlock(:key)"), {"key": key})
                 await connection.commit()
+
+
+@asynccontextmanager
+async def source_lock(
+    engine: AsyncEngine, source: Source, *, keepalive_interval: float | None = None
+) -> AsyncIterator[None]:
+    async with advisory_lock(
+        engine,
+        73101 if source == Source.TMDB else 73102,
+        label=f"Ingestion/preview already running for {source}",
+        keepalive_interval=keepalive_interval,
+    ):
+        yield

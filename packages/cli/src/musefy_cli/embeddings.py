@@ -1,4 +1,4 @@
-"""Bounded, resumable synopsis indexing; no provider requests."""
+"""Bounded, resumable retrieval document indexing; no provider requests."""
 
 import asyncio
 import logging
@@ -50,11 +50,11 @@ async def populate(
             break
         next_id = items[-1].title_id
         # Group similar lengths inside the bounded DB batch to reduce tokenizer padding.
-        items.sort(key=lambda item: len(item.synopsis))
+        items.sort(key=lambda item: len(item.document))
         vectors: list[list[float]] = []
         for offset in range(0, len(items), 128):
             vectors.extend(
-                await embedder.embed_passages([item.synopsis for item in items[offset : offset + 128]])
+                await embedder.embed_passages([item.document for item in items[offset : offset + 128]])
             )
         async with sessions.begin() as session:
             saved = await embeddings.upsert_batch(session, items, vectors)

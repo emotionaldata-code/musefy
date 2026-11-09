@@ -6,6 +6,7 @@ import httpx
 import pytest
 import pytest_asyncio
 from musefy_core.db.session import Sessions, database
+from musefy_core.embeddings import LEGACY_PROFILE
 from musefy_core.settings import Settings
 from pydantic import SecretStr
 from sqlalchemy import text
@@ -50,6 +51,11 @@ async def db(migrated_database: str) -> AsyncIterator[tuple[AsyncEngine, Session
                 "TRUNCATE auth_sessions, users, ingestion_items, checkpoints, titles RESTART IDENTITY CASCADE"
             )
         )
+        await connection.execute(
+            text("UPDATE embedding_state SET active_profile = :profile WHERE id = 1"),
+            {"profile": LEGACY_PROFILE},
+        )
+        await connection.execute(text("TRUNCATE provider_http_limits"))
     try:
         yield engine, sessions
     finally:

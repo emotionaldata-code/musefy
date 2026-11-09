@@ -1,7 +1,7 @@
 from collections.abc import Awaitable, Callable
 from datetime import date, datetime
 from enum import StrEnum
-from typing import Self
+from typing import Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, JsonValue, model_validator
 
@@ -68,6 +68,16 @@ class ExternalID(Model):
     value: str
 
 
+class SynopsisEnrichment(Model):
+    synopsis: str = Field(min_length=1)
+    synopsis_language: str
+    provider: Literal["tmdb", "tvmaze"]
+    external_id: str
+    endpoint: str
+    url: str
+    fetched_at: datetime
+
+
 class Metadata(Model):
     api_base_url: str | None = None
     image_url: str | None = None
@@ -79,6 +89,7 @@ class Metadata(Model):
     original_language: str | None = None
     synopsis: str | None = None
     synopsis_language: str | None = None
+    synopsis_enrichment: SynopsisEnrichment | None = None
     keywords: list[str] = Field(default_factory=list)
     themes: list[str] = Field(default_factory=list)
     staff: list[Credit] = Field(default_factory=list)

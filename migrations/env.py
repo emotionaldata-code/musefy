@@ -2,6 +2,7 @@ import asyncio
 from logging.config import fileConfig
 
 from alembic import context
+from musefy_core.db import healing  # noqa: F401 -- register healer table for Alembic metadata checks
 from musefy_core.db.models import Base
 from musefy_core.settings import Settings
 from sqlalchemy import pool

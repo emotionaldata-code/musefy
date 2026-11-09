@@ -39,6 +39,7 @@ async def test_semantic_search_ranking_filters_pagination_and_stale_data(
         inputs = await embeddings.pending(session, limit=10)
         vectors = [vector(1) if item.title_id == anime else vector(0) for item in inputs]
         assert await embeddings.upsert_batch(session, inputs, vectors) == 5
+        await embeddings.activate(session)
         changed = example(source_id=3)
         changed.metadata.synopsis = "Sinossi modificata dopo l'indicizzazione"
         assert await titles.upsert(session, changed) == stale
