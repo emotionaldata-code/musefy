@@ -182,7 +182,10 @@ per andare a capo. Su desktop la sidebar è aperta all’avvio e richiudibile.
 Su telefono e tablet (fino a 1000 px) il pulsante accanto al titolo apre un menu
 laterale shadcn, chiuso all’avvio: si richiude scegliendo una sezione, toccando fuori
 o premendo Escape. La chat rispetta le safe area e lo spazio visibile della tastiera.
-Il catalogo è accessibile dalle altre voci e direttamente con `/?view=catalog`; i link filtrati esistenti restano validi.
+La sidebar distingue **Esplora il catalogo**, **La tua biblioteca** e **Community**.
+**Esplora** apre il catalogo, con filtri rapidi Tutti, Film, Serie TV, Anime e Manga;
+il pulsante menu a tre trattini apre o chiude la navigazione anche da telefono.
+L'accesso diretto `/?view=catalog` e i link filtrati esistenti restano validi.
 Chat e toggle usano `textarea` e `collapsible`, aggiunti con
 `npx shadcn@latest add collapsible textarea --yes`; menu mobile aggiunto con
 `npx shadcn@latest add sheet --yes`.
@@ -327,6 +330,36 @@ mai un'email o un ID fornito dal client. Un indice serve lettura e ordinamento p
 Applicare `alembic upgrade head` prima di avviare l'API aggiornata. Non servono
 nuovi scope Google, credenziali o variabili d'ambiente. I tipi frontend sono
 generati dallo schema OpenAPI; gli stati personali rimangono in memoria e nel DB.
+
+### Liste Community
+
+**Le tue liste** raccoglie le liste create e quelle seguite; **Scopri liste** mostra
+le liste pubbliche degli altri utenti. Ogni lista ha un nome, una descrizione
+facoltativa e titoli del catalogo. Solo il proprietario può modificarla o eliminarla.
+Le nuove liste sono private. Pubblicarle le rende visibili nella discovery;
+**Condividi** genera un link revocabile, leggibile anche per una lista privata.
+Ogni lettura richiede un account Musefy: il link conserva la destinazione dopo il login.
+Si possono seguire le liste pubbliche; se tornano private, spariscono dalle liste
+seguite fino a una nuova pubblicazione.
+
+- `GET /lists/mine`, `/lists/discover` e `/lists/following`: ricerca `q`, `offset`
+  e `limit` (1–100), conteggi e stato di follow per l'utente corrente.
+- `POST /lists` e `PUT /lists/{id}`: metadati completi `name`, `description`,
+  `is_public`; `DELETE /lists/{id}` elimina la lista.
+- `GET /lists/{id}` e `/lists/{id}/items`: accesso per proprietario, pubblicazione
+  o parametro `share` valido. I titoli supportano i filtri del catalogo e includono
+  gli stati della biblioteca del lettore.
+- `PUT` / `DELETE /lists/{id}/items/{title_id}`: aggiunta e rimozione idempotenti.
+- `POST /lists/{id}/share`: genera o restituisce il token; `DELETE` lo revoca.
+- `PUT` / `DELETE /lists/{id}/follow`: segui o smetti di seguire una lista pubblica.
+
+`community_lists.id` è una chiave primaria UUID; `owner_id` punta a `users.id`.
+`community_list_items` ha chiave primaria composta `(list_id, title_id)`;
+`community_list_follows` ha chiave primaria composta `(list_id, user_id)`.
+Le foreign key cancellano in cascata; indici dedicati servono proprietario,
+discovery, ordine dei titoli e follow. Il token di condivisione è UUID, univoco,
+facoltativo e non compare nelle risposte pubbliche. Tutte le mutazioni verificano
+sessione, Origin e autorizzazione nel backend. Eseguire `alembic upgrade head`.
 
 ## Embeddings e ricerca semantica
 
